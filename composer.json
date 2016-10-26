@@ -1,6 +1,6 @@
 {
   "name": "drupal/akamai",
-  "type": "module",
+  "type": "drupal-module",
   "description": "Cache Control integration with Akamai CDN. Akamai is a registered trademark of Akamai Technologies, Inc.",
   "keywords": ["Drupal", "Akamai", "CDN", "Purge"],
   "homepage": "https://github.com/d8-contrib-modules/akamai",
@@ -10,5 +10,4 @@
     "akamai-open/edgegrid-client": "~0.4.2"
   }
 }
-
 
