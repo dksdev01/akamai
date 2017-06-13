@@ -59,6 +59,11 @@ class CredentialCheck extends DiagnosticCheckBase {
    */
   public function run() {
 
+    if ($this->config->get('disabled') == TRUE) {
+      $this->recommendation = $this->t('Akamai purging is disabled.');
+      return SELF::SEVERITY_INFO;
+    }
+
     if ($this->config->get('devel_mode') == TRUE) {
       $this->recommendation = $this->t('Running in development mode, no credentials required.');
       return SELF::SEVERITY_OK;

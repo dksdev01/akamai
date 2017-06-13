@@ -167,11 +167,11 @@ class ConfigForm extends ConfigFormBase {
       '#title' => t('Development Options'),
     );
 
-    $form['devel_fieldset']['log_requests'] = array(
+    $form['devel_fieldset']['disabled'] = array(
       '#type' => 'checkbox',
-      '#title' => $this->t('Log requests'),
-      '#default_value' => $config->get('log_requests'),
-      '#description' => $this->t('Log all requests and responses.'),
+      '#title' => $this->t('Disable all calls to Akamai'),
+      '#default_value' => $config->get('disabled'),
+      '#description' => $this->t('Killswitch - disable Akamai cache clearing entirely.'),
     );
 
     $form['devel_fieldset']['devel_mode'] = array(
@@ -179,6 +179,13 @@ class ConfigForm extends ConfigFormBase {
       '#title' => $this->t('Use development mode'),
       '#default_value' => $config->get('devel_mode'),
       '#description' => $this->t('Use a Mock API instead of a live one.'),
+    );
+
+    $form['devel_fieldset']['log_requests'] = array(
+      '#type' => 'checkbox',
+      '#title' => $this->t('Log requests'),
+      '#default_value' => $config->get('log_requests'),
+      '#description' => $this->t('Log all requests and responses.'),
     );
 
     $form['devel_fieldset']['mock_endpoint'] = array(
@@ -223,6 +230,7 @@ class ConfigForm extends ConfigFormBase {
       ->set('devel_mode', $values['devel_mode'])
       ->set('mock_endpoint', $values['mock_endpoint'])
       ->set('log_requests', $values['log_requests'])
+      ->set('disabled', $values['disabled'])
       ->save();
 
     $this->checkCredentials();

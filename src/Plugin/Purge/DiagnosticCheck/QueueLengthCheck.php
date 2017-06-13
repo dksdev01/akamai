@@ -7,6 +7,7 @@ use Drupal\purge\Plugin\Purge\DiagnosticCheck\DiagnosticCheckBase;
 use Drupal\purge\Plugin\Purge\DiagnosticCheck\DiagnosticCheckInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\akamai\AkamaiClient;
+use GuzzleHttp\Exception\ClientException;
 
 /**
  * Checks if valid Api credentials have been entered for CloudFlare.
@@ -72,13 +73,18 @@ class QueueLengthCheck extends DiagnosticCheckBase implements DiagnosticCheckInt
    * {@inheritdoc}
    */
   public function run() {
-    $length = $this->akamaiClient->getQueueLength();
+    try {
+      $length = $this->akamaiClient->getQueueLength();
+      $this->recommendation = $length === 0 ?
+        $this->t('Purging queue is empty.') :
+        $this->formatPlural($length, '%count item in the queue', '%count items in the queue', ['%count' => $length]);
+      return SELF::SEVERITY_OK;
+    }
+    catch (ClientException $e) {
+      $this->recommendation = $this->t('Unable to connect to the Akamai API. Please check your credentials and endpoint.');
+      return SELF::SEVERITY_ERROR;
+    }
 
-    $this->recommendation = $length === 0 ?
-      $this->t('Purging queue is empty.') :
-      $this->formatPlural($length, '%count item in the queue', '%count items in the queue', ['%count' => $length]);
-
-    return SELF::SEVERITY_OK;
   }
 
 }
