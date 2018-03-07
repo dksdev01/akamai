@@ -24,6 +24,7 @@ class ConfigSubscriber implements EventSubscriberInterface {
     if ($saved_config->getName() == 'akamai.settings') {
       if (
           $event->isChanged('devel_mode') or
+          $event->isChanged('storage_method') or
           $event->isChanged('rest_api_url') or
           $event->isChanged('client_token') or
           $event->isChanged('client_secret') or

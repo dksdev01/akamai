@@ -11,6 +11,9 @@ akamai.settings:
     rest_api_url:
       type: string
       label: 'URL to Akamai CCUv2 API. Available in your Akamai console.'
+    storage_method:
+      type: string
+      label: 'Credential storage method'
     client_token:
       type: string
       label: 'Client token'
@@ -20,6 +23,12 @@ akamai.settings:
     access_token:
       type: string
       label: 'Access token'
+    edgerc_path:
+      type: string
+      label: 'Path to .edgerc file'
+    edgerc_section:
+      type: string
+      label: 'Section of .edgerc file to use for the CCU API'
     basepath:
       type: string
       label: 'Base path of this Drupal installation - for example, example.com or example.com/subdir.'

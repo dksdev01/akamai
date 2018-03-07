@@ -27,11 +27,15 @@ class AkamaiAuthentication extends Authentication {
   public static function create(ConfigFactoryInterface $config) {
     // Following the pattern in the superclass.
     $auth = new static();
-
     $config = $config->get('akamai.settings');
     // @todo Maybe make the devel mode check a library function?
     if ($config->get('devel_mode') == TRUE) {
       $auth->setHost($config->get('mock_endpoint'));
+    }
+    elseif ($config->get('storage_method') == 'file') {
+      $section = $config->get('edgerc_section') ?: 'default';
+      $path = $config->get('edgerc_path') ?: NULL;
+      $auth = static::createFromEdgeRcFile($section, $path);
     }
     else {
       $auth->setHost($config->get('rest_api_url'));

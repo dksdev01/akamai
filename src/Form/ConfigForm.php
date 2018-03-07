@@ -81,11 +81,53 @@ class ConfigForm extends ConfigFormBase {
       '#description' => $this->t('API Credentials for Akamai. Someone with Luna access will need to set this up. See @link for more.', array('@link' => $this->l($luna_url, $luna_uri))),
     );
 
+    $form['akamai_credentials_fieldset']['storage_method'] = array(
+      '#type' => 'radios',
+      '#title' => $this->t('Credential storage method'),
+      '#default_value' => $config->get('storage_method') ?: 'database',
+      '#options' => array(
+        'database' => $this->t('Database'),
+        'file' => $this->t('.edgerc file'),
+      ),
+      '#required' => TRUE,
+      '#description' => $this->t('Credentials may be stored in the database or in a file. See the README file for more information.'),
+    );
+
+    $database_field_states = array(
+      'required' => array(
+        ':input[name="storage_method"]' => array('value' => 'database'),
+      ),
+      'visible' => array(
+        ':input[name="storage_method"]' => array('value' => 'database'),
+      ),
+      'optional' => array(
+        ':input[name="storage_method"]' => array('value' => 'file'),
+      ),
+      'invisible' => array(
+        ':input[name="storage_method"]' => array('value' => 'file'),
+      ),
+    );
+    $file_field_states = array(
+      'required' => array(
+        ':input[name="storage_method"]' => array('value' => 'file'),
+      ),
+      'visible' => array(
+        ':input[name="storage_method"]' => array('value' => 'file'),
+      ),
+      'optional' => array(
+        ':input[name="storage_method"]' => array('value' => 'database'),
+      ),
+      'invisible' => array(
+        ':input[name="storage_method"]' => array('value' => 'database'),
+      ),
+    );
+
     $form['akamai_credentials_fieldset']['rest_api_url'] = array(
       '#type' => 'url',
       '#title' => $this->t('REST API URL'),
       '#description'   => $this->t('The URL of the Akamai CCUv2 API host. It should be in the format *.purge.akamaiapis.net/'),
       '#default_value' => $config->get('rest_api_url'),
+      '#states' => $database_field_states,
     );
 
     $form['akamai_credentials_fieldset']['access_token'] = array(
@@ -93,6 +135,7 @@ class ConfigForm extends ConfigFormBase {
       '#title' => $this->t('Access Token'),
       '#description'   => $this->t('Access token.'),
       '#default_value' => $config->get('access_token'),
+      '#states' => $database_field_states,
     );
 
     $form['akamai_credentials_fieldset']['client_token'] = array(
@@ -100,6 +143,7 @@ class ConfigForm extends ConfigFormBase {
       '#title' => $this->t('Client Token'),
       '#description'   => $this->t('Client token.'),
       '#default_value' => $config->get('client_token'),
+      '#states' => $database_field_states,
     );
 
     $form['akamai_credentials_fieldset']['client_secret'] = array(
@@ -107,6 +151,21 @@ class ConfigForm extends ConfigFormBase {
       '#title' => $this->t('Client Secret'),
       '#description'   => $this->t('Client secret.'),
       '#default_value' => $config->get('client_secret'),
+      '#states' => $database_field_states,
+    );
+
+    $form['akamai_credentials_fieldset']['edgerc_path'] = array(
+      '#type' => 'textfield',
+      '#title' => $this->t('Path to .edgerc file'),
+      '#default_value' => $config->get('edgerc_path') ?: '',
+      '#states' => $file_field_states,
+    );
+
+    $form['akamai_credentials_fieldset']['edgerc_section'] = array(
+      '#type' => 'textfield',
+      '#title' => $this->t('Section of .edgerc file to use for the CCU API'),
+      '#default_value' => $config->get('edgerc_section') ?: 'default',
+      '#states' => $file_field_states,
     );
 
     global $base_url;
@@ -219,9 +278,12 @@ class ConfigForm extends ConfigFormBase {
 
     $this->config('akamai.settings')
       ->set('rest_api_url', $values['rest_api_url'])
+      ->set('storage_method', $values['storage_method'])
       ->set('client_token', $values['client_token'])
       ->set('client_secret', $values['client_secret'])
       ->set('access_token', $values['access_token'])
+      ->set('edgerc_path', $values['edgerc_path'])
+      ->set('edgerc_section', $values['edgerc_section'])
       ->set('basepath', $values['basepath'])
       ->set('timeout', $values['timeout'])
       ->set('status_expire', $values['status_expire'])

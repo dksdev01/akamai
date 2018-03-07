@@ -1,8 +1,11 @@
 disabled: FALSE
+storage_method: 'database'
 rest_api_url: 'https://xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx.luna.akamaiapis.net/'
 client_token: 'xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx'
 client_secret: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 access_token: 'xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx'
+edgerc_path: ''
+edgerc_section: 'default'
 basepath: NULL
 timeout: 5
 domain:
