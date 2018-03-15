@@ -9,9 +9,6 @@
   "require": {
     "akamai-open/edgegrid-client": "~0.4.2"
   },
-  "require": {
-    "php": ">=5.6.0"
-  },
   "extra": {
     "drush": {
       "services": {
