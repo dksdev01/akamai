@@ -72,7 +72,7 @@ class CacheControlForm extends FormBase {
     $settings_link = Url::fromRoute('akamai.settings');
     $settings_link = $this->l($settings_link->getInternalPath(), $settings_link);
     $paths_description = $this->t(
-      'Enter one URL per line. URL entries should be relative to the basepath
+      'Enter one URL or CPCode per line. URL entries should be relative to the basepath
       (e.g. node/1, content/pretty-title, sites/default/files/some/image.png).
       Your basepath for Akamai is set as :basepath. If you would like to change
       it, you can do so at @settings.',
@@ -84,7 +84,7 @@ class CacheControlForm extends FormBase {
 
     $form['paths'] = array(
       '#type' => 'textarea',
-      '#title' => $this->t('Paths/URLs'),
+      '#title' => $this->t('Paths/URLs/CPCodes'),
       '#description' => $paths_description,
       '#required' => TRUE,
       '#default_value' => $form_state->get('paths'),
@@ -114,6 +114,17 @@ class CacheControlForm extends FormBase {
       '#description' => $this->t('<b>Remove:</b> Purge the content from Akamai edge server caches. The next time the edge server receives a request for the content, it will retrieve the current version from the origin server. If it cannot retrieve a current version, it will follow instructions in your edge server configuration.<br/><br/><b>Invalidate:</b> Mark the cached content as invalid. The next time the Akamai edge server receives a request for the content, it will send an HTTP conditional get (If-Modified-Since) request to the origin. If the content has changed, the origin server will return a full fresh copy; otherwise, the origin normally will respond that the content has not changed, and Akamai can serve the already-cached content.<br/><br/><b>Note that <em>Remove</em> can increase the load on the origin more than <em>Invalidate</em>.</b> With <em>Invalidate</em>, objects are not removed from cache and full objects are not retrieved from the origin unless they are newer than the cached versions.'),
     );
 
+    $form['method'] = array(
+      '#type' => 'radios',
+      '#title' => $this->t('Purge Method'),
+      '#options' => array(
+        'url'    => $this->t('URL'),
+        'cpcode' => $this->t('Content Provider Code'),
+      ),
+      '#default_value' => $form_state->get('method') ?: 'url',
+      '#description' => $this->t('The Akamai API method to use for cache purge requests.'),
+    );
+
     $form['submit'] = array(
       '#type' => 'submit',
       '#value' => $this->t('Start Refreshing Content'),
@@ -127,24 +138,33 @@ class CacheControlForm extends FormBase {
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
-    foreach (explode(PHP_EOL, $form_state->getValue('paths')) as $path) {
-      // Remove any leading slashes so we can control them later.
-      if ($path[0] === '/') {
-        $path = ltrim($path, '/');
-      }
-      $path = trim($path);
-      if (UrlHelper::isExternal($path)) {
-        $full_urls[] = $path;
-      }
-      else {
-        $url = Url::fromUserInput('/' . $path);
-        if ($url->isRouted()) {
-          $paths_to_clear[] = $path;
+    $objects = explode(PHP_EOL, $form_state->getValue('paths'));
+    $method = $form_state->getValue('method');
+
+    if ($method == 'url') {
+      foreach ($objects as $path) {
+        // Remove any leading slashes so we can control them later.
+        if ($path[0] === '/') {
+          $path = ltrim($path, '/');
+        }
+        $path = trim($path);
+        if (UrlHelper::isExternal($path)) {
+          $full_urls[] = $path;
         }
         else {
-          $invalid_paths[] = $path;
+          $url = Url::fromUserInput('/' . $path);
+          if ($url->isRouted()) {
+            $paths_to_clear[] = $path;
+          }
+          else {
+            $invalid_paths[] = $path;
+          }
         }
       }
+    }
+    // Handle cpcodes.
+    else {
+      $paths_to_clear = $objects;
     }
 
     if (!empty($full_urls)) {
@@ -163,7 +183,7 @@ class CacheControlForm extends FormBase {
     }
 
     if (empty($paths_to_clear)) {
-      $form_state->setErrorByName('paths', $this->t('Please enter at least one valid path for URL purging.'));
+      $form_state->setErrorByName('paths', $this->t('Please enter at least one valid object for %method purging.', ['%method' => $method]));
     }
   }
 
@@ -171,17 +191,35 @@ class CacheControlForm extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $urls_to_clear = array();
-    foreach (explode(PHP_EOL, $form_state->getValue('paths')) as $path) {
-      $urls_to_clear[] = trim('/' . $path);
-    }
     $action = $form_state->getValue('action');
+    $method = $form_state->getValue('method');
+    $objects = explode(PHP_EOL, $form_state->getValue('paths'));
+    $urls_to_clear = array();
+
+    if ($method == 'url') {
+      foreach ($objects as $path) {
+        $urls_to_clear[] = trim('/' . $path);
+      }
+    }
+    else {
+      $urls_to_clear = $objects;
+      $this->akamaiClient->setType('cpcode');
+    }
+
     $this->akamaiClient->setAction($action);
     $this->akamaiClient->setDomain($form_state->getValue('domain_override'));
-    $response = $this->akamaiClient->purgeUrls($urls_to_clear);
+
+    if ($method == 'url') {
+      $response = $this->akamaiClient->purgeUrls($urls_to_clear);
+    }
+    // Handle cpcodes.
+    else {
+      $response = $this->akamaiClient->purgeCpCodes($urls_to_clear);
+    }
+
     if ($response) {
-      drupal_set_message($this->t('Requested :action of the following URLs: :urls',
-        [':action' => $action, ':urls' => implode(', ', $urls_to_clear)])
+      drupal_set_message($this->t('Requested :action of the following objects: :objects',
+        [':action' => $action, ':objects' => implode(', ', $urls_to_clear)])
       );
     }
     else {

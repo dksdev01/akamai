@@ -234,6 +234,32 @@ class AkamaiClient extends Client {
   }
 
   /**
+   * Purges a single cpcode object.
+   *
+   * @param string $cpcode
+   *   A cpcode to clear.
+   *
+   * @return \GuzzleHttp\Psr7\Response
+   *    Response to purge request.
+   */
+  public function purgeCpCode($cpcode) {
+    return $this->purgeCpCodes(array($cpcode));
+  }
+
+  /**
+   * Purges a list of cpcode objects.
+   *
+   * @param array $cpcodes
+   *   List of cpcodes to purge.
+   *
+   * @return \GuzzleHttp\Psr7\Response
+   *    Response to purge request.
+   */
+  public function purgeCpCodes($cpcodes) {
+    return $this->purgeRequest($cpcodes);
+  }
+
+  /**
    * Ask the API to purge an object.
    *
    * @param string[] $objects
