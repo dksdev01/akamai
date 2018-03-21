@@ -36,7 +36,6 @@ class CacheControlForm extends FormBase {
    */
   public function __construct(AkamaiClient $akamai_client) {
     $this->akamaiClient = $akamai_client;
-
   }
 
   /**

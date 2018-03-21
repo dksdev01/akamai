@@ -95,7 +95,7 @@ via the module's config form.
 ## Testing and development
 
 Akamai provides a Mock API endpoint at
-http://private-250a0-akamaiopen2purgeccuproduction.apiary-mock.com/ccu/v2
+https://akamaiopen2purgeccuproduction.docs.apiary.io/ccu/v2
 
 You can enable development mode in the config form to use this instead of a
 live URL.

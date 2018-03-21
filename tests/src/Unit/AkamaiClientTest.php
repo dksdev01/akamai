@@ -52,11 +52,26 @@ class AkamaiClientTest extends UnitTestCase {
    * Returns a client set to use devel_mode and a testing endpoint.
    */
   public function getTestingClient() {
-    $client_config = [
-      'devel_mode' => TRUE,
-      'mock_endpoint' => 'http://private-250a0-akamaiopen2purgeccuproduction.apiary-mock.com',
-    ];
-    return $this->getClient($client_config);
+    // Create stub for response class.
+    $response_stub = $this->getMockBuilder('GuzzleHttp\Psr7\Response')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $response_stub->method('getStatusCode')
+      ->willReturn(201);
+
+    // Create stub for the Akamai Client class.
+    $akamai_client = $this->getMockBuilder('\Drupal\akamai\AkamaiClient')
+      ->disableOriginalConstructor()
+      ->setMethods(['purgeRequest', 'getQueueLength'])
+      ->getMock();
+    $akamai_client->method('purgeRequest')
+      ->with(['http://example.com/node/11'])
+      ->willReturn($response_stub);
+    $akamai_client->method('getQueueLength')
+      ->willReturn(4);
+    $akamai_client->setBaseUrl('http://example.com/');
+
+    return $akamai_client;
   }
 
   /**
@@ -183,10 +198,10 @@ class AkamaiClientTest extends UnitTestCase {
     $akamai_client = $this->getTestingClient();
 
     $response = $akamai_client->purgeUrl($urls[0]);
-    $this->assertEquals('GuzzleHttp\Psr7\Response', get_class($response));
+    $this->assertEquals('GuzzleHttp\Psr7\Response', get_parent_class($response));
+    $this->assertEquals('201', $response->getStatusCode());
     $response = $akamai_client->purgeUrls($urls);
-    $this->assertEquals('GuzzleHttp\Psr7\Response', get_class($response));
-
+    $this->assertEquals('GuzzleHttp\Psr7\Response', get_parent_class($response));
     $this->assertEquals('201', $response->getStatusCode());
 
     // Intentionally trigger an exception.
@@ -215,7 +230,37 @@ class AkamaiClientTest extends UnitTestCase {
    * @covers ::formatExceptionMessage
    */
   public function testIsAuthorized() {
-    $akamai_client = $this->getTestingClient();
+    // Create stub for response class.
+    $response_stub = $this->getMockBuilder('GuzzleHttp\Psr7\Response')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $response_stub->method('getStatusCode')
+      ->willReturn(200);
+
+    // Create mock for the Akamai client class.
+    $akamai_client = $this->getMockBuilder('Drupal\akamai\AkamaiClient')
+      ->disableOriginalConstructor()
+      ->setMethods(['get'])
+      ->getMock();
+
+    $akamai_client->expects($this->at(0))
+      ->method('get')
+      ->with('/ccu/v2/queues/default')
+      ->willReturn($response_stub);
+
+    // Create stub for response class.
+    $response_stub = $this->getMockBuilder('GuzzleHttp\Psr7\Response')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $response_stub->method('getStatusCode')
+      ->willReturn(404);
+
+    $akamai_client->expects($this->at(1))
+      ->method('get')
+      ->with($this->logicalNot($this->equalTo('/ccu/v2/queues/default')))
+      ->willReturn($response_stub);
+
+    // Test isAuthorized.
     $this->assertTrue($akamai_client->isAuthorized());
 
     // Intentionally send a bad request.
@@ -229,9 +274,34 @@ class AkamaiClientTest extends UnitTestCase {
    * @covers ::getPurgeStatus
    */
   public function testGetPurgeStatus() {
-    $akamai_client = $this->getTestingClient();
+    // Create stub for response class.
+    $response_stub = $this->getMockBuilder('GuzzleHttp\Psr7\Response')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $response_stub->method('getStatusCode')
+      ->willReturn(200);
+
+    // Create mock for the Akamai client class.
+    $akamai_client = $this->getMockBuilder('Drupal\akamai\AkamaiClient')
+      ->disableOriginalConstructor()
+      ->setMethods(['request'])
+      ->getMock();
+    $akamai_client->expects($this->at(0))
+      ->method('request')
+      ->with('GET', $this->callback(function($payload) {
+        return $payload === '/ccu/v2/purges/dummy_id';
+      }))
+      ->willReturn($response_stub);
+    $akamai_client->expects($this->at(1))
+      ->method('request')
+      ->with($this->equalTo('GET'), $this->callback(function($payload) {
+        return $payload !== '/ccu/v2/purges/dummy_id';
+      }))
+      ->willReturn(FALSE);
+
+    // Test purge status/ get status code.
     $response = $akamai_client->getPurgeStatus('dummy_id');
-    $this->assertEquals('GuzzleHttp\Psr7\Response', get_class($response));
+    $this->assertEquals('GuzzleHttp\Psr7\Response', get_parent_class($response));
     $this->assertEquals('200', $response->getStatusCode());
 
     // Intentionally send bad request.

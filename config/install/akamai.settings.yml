@@ -15,6 +15,6 @@ action:
   remove: TRUE
   invalidate: FALSE
 devel_mode: TRUE
-mock_endpoint: 'http://private-250a0-akamaiopen2purgeccuproduction.apiary-mock.com'
+mock_endpoint: 'https://akamaiopen2purgeccuproduction.docs.apiary.io'
 log_requests: FALSE
 status_expire: 1209600
