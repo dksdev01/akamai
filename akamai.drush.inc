@@ -43,7 +43,7 @@ function akamai_drush_command() {
 function drush_akamai_clear_cpcode($cpcode) {
   $action = drush_get_option('action', 'remove');
   $domain = drush_get_option('domain', 'production');
-  $client = \Drupal::service('akamai.edgegridclient');
+  $client = \Drupal::service('akamai.client.factory')->get();
   $client->setType('cpcode');
   $client->setAction($action);
   $client->setDomain($domain);
@@ -62,7 +62,7 @@ function drush_akamai_clear_cpcode($cpcode) {
 function drush_akamai_clear_url($path) {
   $action = drush_get_option('action', 'remove');
   $domain = drush_get_option('domain', 'production');
-  $client = \Drupal::service('akamai.edgegridclient');
+  $client = \Drupal::service('akamai.client.factory')->get();
   $client->setAction($action);
   $client->setDomain($domain);
   $paths = explode(' ', $path);

@@ -12,7 +12,9 @@ class AkamaiCommands extends DrushCommands {
   /**
    * Akamai clear cpcode.
    *
-   * @param $cpcode A cpcode to clear. You can provide as many cpcodes you like.
+   * @param string $cpcode
+   *   A cpcode to clear. You can provide as many cpcodes you like.
+   *
    * @option action Clearing action type.
    * @option domain The Akamai domain to use for cache clearing.
    *
@@ -20,10 +22,10 @@ class AkamaiCommands extends DrushCommands {
    * @aliases akcc
    */
   public function clearCpCode($cpcode, $options = [
-    'action' => 'remove',
+    'action' => 'invalidate',
     'domain' => 'production',
   ]) {
-    $client = \Drupal::service('akamai.edgegridclient');
+    $client = \Drupal::service('akamai.client.factory')->get();
     $client->setType('cpcode');
     $client->setAction($options['action']);
     $client->setDomain($options['domain']);
@@ -37,7 +39,9 @@ class AkamaiCommands extends DrushCommands {
   /**
    * Akamai clear URL.
    *
-   * @param $path A path to clear. You can provide as many paths you like.
+   * @param string $path
+   *   A path to clear. You can provide as many paths you like.
+   *
    * @option action Clearing action type.
    * @option domain The Akamai domain to use for cache clearing.
    *
@@ -45,10 +49,10 @@ class AkamaiCommands extends DrushCommands {
    * @aliases akcu
    */
   public function clearUrl($path, $options = [
-    'action' => 'remove',
+    'action' => 'invalidate',
     'domain' => 'production',
   ]) {
-    $client = \Drupal::service('akamai.edgegridclient');
+    $client = \Drupal::service('akamai.client.factory')->get();
     $client->setAction($options['action']);
     $client->setDomain($options['domain']);
     $paths = explode(' ', $path);

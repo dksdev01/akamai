@@ -1,3 +1,4 @@
+version: v2
 disabled: FALSE
 storage_method: 'database'
 rest_api_url: 'https://xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx.luna.akamaiapis.net/'
@@ -11,8 +12,11 @@ timeout: 5
 domain:
   production: TRUE
   staging: FALSE
-action:
+action_v2:
   remove: TRUE
+  invalidate: FALSE
+action_v3:
+  delete: TRUE
   invalidate: FALSE
 devel_mode: TRUE
 mock_endpoint: 'https://akamaiopen2purgeccuproduction.docs.apiary.io'

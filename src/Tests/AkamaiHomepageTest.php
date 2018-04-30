@@ -14,17 +14,23 @@ use Drupal\simpletest\WebTestBase;
 class AkamaiHomepageTest extends WebTestBase {
 
   /**
-   * User with admin rights.
+   * Node created.
+   *
+   * @var \Drupal\node\NodeInterface
    */
   protected $node;
 
   /**
    * Path to Drupal homepage.
+   *
+   * @var string
    */
   protected $homepage;
 
   /**
    * User with admin rights.
+   *
+   * @var \Drupal\user\UserInterface
    */
   protected $privilegedUser;
 
@@ -41,10 +47,10 @@ class AkamaiHomepageTest extends WebTestBase {
   protected function setUp() {
     parent::setUp();
     // Create and log in our privileged user.
-    $this->privilegedUser = $this->drupalCreateUser(array(
+    $this->privilegedUser = $this->drupalCreateUser([
       'administer blocks',
       'purge akamai cache',
-    ));
+    ]);
     $this->drupalLogin($this->privilegedUser);
     $this->drupalCreateContentType(['type' => 'article']);
     $this->node = $this->drupalCreateNode(['type' => 'article']);
@@ -63,10 +69,10 @@ class AkamaiHomepageTest extends WebTestBase {
     $theme_settings = $this->config('system.theme');
     foreach (['bartik'] as $theme) {
       // Configure and save the block.
-      $this->drupalPlaceBlock('akamai_cache_clear_block', array(
+      $this->drupalPlaceBlock('akamai_cache_clear_block', [
         'region' => 'content',
         'theme' => $theme,
-      ));
+      ]);
       // Set the default theme and ensure the block is placed.
       $theme_settings->set('default', $theme)->save();
       // The cache clearing block should pick up the current URL as the clearing

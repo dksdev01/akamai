@@ -65,7 +65,7 @@ class QueueLengthCheck extends DiagnosticCheckBase implements DiagnosticCheckInt
       $plugin_id,
       $plugin_definition,
       $container->get('config.factory'),
-      \Drupal::service('akamai.edgegridclient')
+      \Drupal::service('akamai.client.factory')->get()
     );
   }
 

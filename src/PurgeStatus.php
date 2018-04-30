@@ -62,7 +62,7 @@ class PurgeStatus {
    * @param array $status_requests
    *   A status response as an array, or a list of responses.
    */
-  public function __construct($status_requests) {
+  public function __construct(array $status_requests) {
     $this->statusRequests = $status_requests;
 
     // Collate all of the URLs from every request.

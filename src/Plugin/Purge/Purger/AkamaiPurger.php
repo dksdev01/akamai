@@ -5,7 +5,7 @@ namespace Drupal\akamai\Plugin\Purge\Purger;
 use Drupal\purge\Plugin\Purge\Purger\PurgerBase;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use \Drupal\purge\Plugin\Purge\Invalidation\InvalidationInterface;
+use Drupal\purge\Plugin\Purge\Invalidation\InvalidationInterface;
 
 /**
  * Akamai Purger.
@@ -31,7 +31,7 @@ class AkamaiPurger extends PurgerBase {
   /**
    * Akamai client config.
    *
-   * @var \Drupal\Core\Config;
+   * @var \Drupal\Core\Config
    */
   protected $akamaiClientConfig;
 
@@ -61,7 +61,7 @@ class AkamaiPurger extends PurgerBase {
    */
   public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->client = \Drupal::service('akamai.edgegridclient');
+    $this->client = \Drupal::service('akamai.client.factory')->get();
     $this->akamaiClientConfig = $config->get('akamai.settings');
   }
 

@@ -30,7 +30,7 @@ class ConfigSubscriber implements EventSubscriberInterface {
           $event->isChanged('client_secret') or
           $event->isChanged('access_token')
       ) {
-        \Drupal::state()->set('akamai.valid_credentials', \Drupal::service('akamai.edgegridclient')->isAuthorized());
+        \Drupal::state()->set('akamai.valid_credentials', \Drupal::service('akamai.client.factory')->get()->isAuthorized());
       }
     }
 
@@ -40,8 +40,8 @@ class ConfigSubscriber implements EventSubscriberInterface {
    * {@inheritdoc}
    */
   public static function getSubscribedEvents() {
-    $events = array();
-    $events[ConfigEvents::SAVE][] = array('onConfigSave', 0);
+    $events = [];
+    $events[ConfigEvents::SAVE][] = ['onConfigSave', 0];
     return $events;
   }
 

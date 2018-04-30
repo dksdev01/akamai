@@ -1,0 +1,2891 @@
+From ea12f4cf5a6876b940f097a9831f5934f3c6b1dd Mon Sep 17 00:00:00 2001
+From: Paul Maddern <pobster@25159.no-reply.drupal.org>
+Date: Mon, 30 Apr 2018 20:34:29 +0100
+Subject: [PATCH] Issue #2950936 by WidgetsBurritos: CCUv3 Support
+
+---
+ akamai.drush.inc                                   |   4 +-
+ akamai.install                                     |   9 +-
+ akamai.module                                      |   1 +
+ akamai.services.yml                                |  12 +-
+ config/install/akamai.settings.yml                 |   6 +-
+ config/schema/akamai.schema.yml                    |  19 +-
+ src/AkamaiClient.php                               |  38 +-
+ src/AkamaiClientBase.php                           | 491 +++++++++++++++++++++
+ src/AkamaiClientFactory.php                        | 101 +++++
+ src/AkamaiClientInterface.php                      |  81 ++++
+ src/AkamaiClientManager.php                        |  86 ++++
+ src/Annotation/AkamaiClient.php                    |  41 ++
+ src/Commands/AkamaiCommands.php                    |  16 +-
+ src/Controller/StatusLogController.php             |  10 +-
+ src/EventSubscriber/ConfigSubscriber.php           |   6 +-
+ src/Form/CacheControlForm.php                      |  63 +--
+ src/Form/ClearUrlForm.php                          |  18 +-
+ src/Form/ConfigForm.php                            | 249 ++++++-----
+ src/Plugin/Block/CacheClearBlock.php               |   4 +-
+ src/Plugin/Client/AkamaiClientV2.php               | 193 ++++++++
+ src/Plugin/Client/AkamaiClientV3.php               | 178 ++++++++
+ .../Purge/DiagnosticCheck/QueueLengthCheck.php     |   2 +-
+ src/Plugin/Purge/Purger/AkamaiPurger.php           |   6 +-
+ src/PurgeStatus.php                                |   2 +-
+ src/StatusStorage.php                              |  12 +-
+ src/Tests/AkamaiCacheControlFormTest.php           |   8 +-
+ src/Tests/AkamaiConfigFormTest.php                 |   9 +-
+ src/Tests/AkamaiHomepageTest.php                   |  16 +-
+ src/Tests/AkamaiStatusLogTest.php                  |   6 +-
+ tests/src/Unit/AkamaiAuthenticationTest.php        |   2 +-
+ tests/src/Unit/AkamaiClientTest.php                | 137 ++++--
+ 31 files changed, 1569 insertions(+), 257 deletions(-)
+ create mode 100644 src/AkamaiClientBase.php
+ create mode 100644 src/AkamaiClientFactory.php
+ create mode 100644 src/AkamaiClientInterface.php
+ create mode 100644 src/AkamaiClientManager.php
+ create mode 100644 src/Annotation/AkamaiClient.php
+ create mode 100644 src/Plugin/Client/AkamaiClientV2.php
+ create mode 100644 src/Plugin/Client/AkamaiClientV3.php
+
+diff --git a/akamai.drush.inc b/akamai.drush.inc
+index 628d446..09e6929 100644
+--- a/akamai.drush.inc
++++ b/akamai.drush.inc
+@@ -43,7 +43,7 @@ function akamai_drush_command() {
+ function drush_akamai_clear_cpcode($cpcode) {
+   $action = drush_get_option('action', 'remove');
+   $domain = drush_get_option('domain', 'production');
+-  $client = \Drupal::service('akamai.edgegridclient');
++  $client = \Drupal::service('akamai.client.factory')->get();
+   $client->setType('cpcode');
+   $client->setAction($action);
+   $client->setDomain($domain);
+@@ -62,7 +62,7 @@ function drush_akamai_clear_cpcode($cpcode) {
+ function drush_akamai_clear_url($path) {
+   $action = drush_get_option('action', 'remove');
+   $domain = drush_get_option('domain', 'production');
+-  $client = \Drupal::service('akamai.edgegridclient');
++  $client = \Drupal::service('akamai.client.factory')->get();
+   $client->setAction($action);
+   $client->setDomain($domain);
+   $paths = explode(' ', $path);
+diff --git a/akamai.install b/akamai.install
+index 48578b0..c1a8291 100644
+--- a/akamai.install
++++ b/akamai.install
+@@ -11,8 +11,15 @@
+ function akamai_requirements($phase) {
+   $requirements = [];
+   if ($phase == 'install') {
++    if (!class_exists('\Akamai\Open\EdgeGrid\Auth')) {
++      $requirements['akamai_auth_dependency'] = [
++        'title' => t('Akamai'),
++        'description' => t('Akamai requires the akamai-open/edgegrid-auth library. Try installing it with composer manager.'),
++        'severity' => REQUIREMENT_ERROR,
++      ];
++    }
+     if (!class_exists('\Akamai\Open\EdgeGrid\Client')) {
+-      $requirements['dependency'] = [
++      $requirements['akamai_client_dependency'] = [
+         'title' => t('Akamai'),
+         'description' => t('Akamai requires the akamai-open/edgegrid-client library. Try installing it with composer manager.'),
+         'severity' => REQUIREMENT_ERROR,
+diff --git a/akamai.module b/akamai.module
+index f6e2a62..b9cf97a 100644
+--- a/akamai.module
++++ b/akamai.module
+@@ -1,4 +1,5 @@
+ <?php
++
+ /**
+  * @file
+  * Hook implementations for the Akamai Drupal 8 integration module.
+diff --git a/akamai.services.yml b/akamai.services.yml
+index 83b5050..f2f9ed7 100644
+--- a/akamai.services.yml
++++ b/akamai.services.yml
+@@ -1,7 +1,15 @@
+ services:
+   akamai.edgegridclient:
+-    class: Drupal\akamai\AkamaiClient
+-    arguments: ['@config.factory', '@logger.channel.akamai', '@akamai.status_storage']
++    class: Akamai\Open\EdgeGrid\Client
++  akamai.client.factory:
++    class: Drupal\akamai\AkamaiClientFactory
++    arguments: ['@akamai.client.manager']
++  akamai.client.manager:
++    class: Drupal\akamai\AkamaiClientManager
++    arguments: ['@config.factory']
++    parent: default_plugin_manager
++    tags:
++      - { name: plugin_manager_cache_clear }
+   akamai.status_storage:
+     class: Drupal\akamai\StatusStorage
+     arguments: ['@config.factory', '@logger.channel.akamai']
+diff --git a/config/install/akamai.settings.yml b/config/install/akamai.settings.yml
+index da80bca..df4bdb4 100644
+--- a/config/install/akamai.settings.yml
++++ b/config/install/akamai.settings.yml
+@@ -1,3 +1,4 @@
++version: v2
+ disabled: FALSE
+ storage_method: 'database'
+ rest_api_url: 'https://xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx.luna.akamaiapis.net/'
+@@ -11,9 +12,12 @@ timeout: 5
+ domain:
+   production: TRUE
+   staging: FALSE
+-action:
++action_v2:
+   remove: TRUE
+   invalidate: FALSE
++action_v3:
++  delete: TRUE
++  invalidate: FALSE
+ devel_mode: TRUE
+ mock_endpoint: 'https://akamaiopen2purgeccuproduction.docs.apiary.io'
+ log_requests: FALSE
+diff --git a/config/schema/akamai.schema.yml b/config/schema/akamai.schema.yml
+index ce10db9..c63a0b1 100644
+--- a/config/schema/akamai.schema.yml
++++ b/config/schema/akamai.schema.yml
+@@ -5,6 +5,9 @@ akamai.settings:
+   type: config_object
+   label: 'Akamai Settings'
+   mapping:
++    version:
++      type: string
++      label: 'Akamai client CCU version to use'
+     disabled:
+       type: boolean
+       label: 'Disable Akamai cache clearing globally'
+@@ -45,9 +48,9 @@ akamai.settings:
+         staging:
+           type: boolean
+           label: 'Staging'
+-    action:
++    action_v2:
+       type: mapping
+-      label: 'Action'
++      label: 'Action CCUv2'
+       mapping:
+         remove:
+           type: boolean
+@@ -57,6 +60,18 @@ akamai.settings:
+           type: boolean
+           label: 'Invalidate'
+           description: 'Marks the cached content as invalid. The next time a server receives a request for the content, it sends an HTTP conditional GET (If-Modified-Since) request to the origin. If the content has changed, the origin server returns a full fresh copy. Otherwise, the origin normally responds that the content has not changed, and the Edge server can serve the already-cached content.'
++    action_v3:
++      type: mapping
++      label: 'Action CCUv3'
++      mapping:
++        delete:
++          type: boolean
++          label: 'Delete'
++          description: 'Delete content entirely from Edge server caches. next time an Edge server receives a request for the content, it will retrieve the current version from the origin server.'
++        invalidate:
++          type: boolean
++          label: 'Invalidate'
++          description: 'Marks the cached content as invalid. The next time a server receives a request for the content, it sends an HTTP conditional GET (If-Modified-Since) request to the origin. If the content has changed, the origin server returns a full fresh copy. Otherwise, the origin normally responds that the content has not changed, and the Edge server can serve the already-cached content.'
+     devel_mode:
+       type: boolean
+       label: 'Use the mock endpoint instead of the real one (for development/testing).'
+diff --git a/src/AkamaiClient.php b/src/AkamaiClient.php
+index 63a67a4..9ee6187 100644
+--- a/src/AkamaiClient.php
++++ b/src/AkamaiClient.php
+@@ -20,8 +20,6 @@ class AkamaiClient extends Client {
+   /**
+    * The settings configuration.
+    *
+-   * @note GuzzleHttp\Client has its own private property called $config.
+-   *
+    * @var \Drupal\Core\Config\Config
+    */
+   protected $drupalConfig;
+@@ -141,7 +139,7 @@ class AkamaiClient extends Client {
+    * @see Akamai\Open\EdgeGrid\Client::setBasicOptions
+    */
+   public function createClientConfig() {
+-    $client_config = array();
++    $client_config = [];
+     // If we are in devel mode, use the mocked endpoint.
+     if ($this->drupalConfig->get('devel_mode') == TRUE) {
+       $client_config['base_uri'] = $this->drupalConfig->get('mock_endpoint');
+@@ -208,10 +206,10 @@ class AkamaiClient extends Client {
+    *   A URL to clear.
+    *
+    * @return \GuzzleHttp\Psr7\Response
+-   *    Response to purge request.
++   *   Response to purge request.
+    */
+   public function purgeUrl($url) {
+-    return $this->purgeUrls(array($url));
++    return $this->purgeUrls([$url]);
+   }
+ 
+   /**
+@@ -221,9 +219,9 @@ class AkamaiClient extends Client {
+    *   List of URLs to purge.
+    *
+    * @return \GuzzleHttp\Psr7\Response
+-   *    Response to purge request.
++   *   Response to purge request.
+    */
+-  public function purgeUrls($urls) {
++  public function purgeUrls(array $urls) {
+     $urls = $this->normalizeUrls($urls);
+     foreach ($urls as $url) {
+       if ($this->isAkamaiManagedUrl($url) === FALSE) {
+@@ -240,10 +238,10 @@ class AkamaiClient extends Client {
+    *   A cpcode to clear.
+    *
+    * @return \GuzzleHttp\Psr7\Response
+-   *    Response to purge request.
++   *   Response to purge request.
+    */
+   public function purgeCpCode($cpcode) {
+-    return $this->purgeCpCodes(array($cpcode));
++    return $this->purgeCpCodes([$cpcode]);
+   }
+ 
+   /**
+@@ -253,9 +251,9 @@ class AkamaiClient extends Client {
+    *   List of cpcodes to purge.
+    *
+    * @return \GuzzleHttp\Psr7\Response
+-   *    Response to purge request.
++   *   Response to purge request.
+    */
+-  public function purgeCpCodes($cpcodes) {
++  public function purgeCpCodes(array $cpcodes) {
+     return $this->purgeRequest($cpcodes);
+   }
+ 
+@@ -266,12 +264,12 @@ class AkamaiClient extends Client {
+    *   A non-associative array of Akamai objects to clear.
+    *
+    * @return \GuzzleHttp\Psr7\Response|bool
+-   *    Response to purge request, or FALSE on failure.
++   *   Response to purge request, or FALSE on failure.
+    *
+    * @link https://developer.akamai.com/api/purge/ccu/reference.html
+    * @link https://github.com/akamai-open/api-kickstart/blob/master/examples/php/ccu.php#L58
+    */
+-  protected function purgeRequest($objects) {
++  protected function purgeRequest(array $objects) {
+     try {
+       $response = $this->request(
+         'POST',
+@@ -311,7 +309,7 @@ class AkamaiClient extends Client {
+    * @return array
+    *   An array suitable for sending to the Akamai purge endpoint.
+    */
+-  public function createPurgeBody($urls) {
++  public function createPurgeBody(array $urls) {
+     return [
+       'objects' => $urls,
+       'action' => $this->action,
+@@ -329,7 +327,7 @@ class AkamaiClient extends Client {
+    * @return string[]
+    *   A list of fully qualified URls.
+    */
+-  public function normalizeUrls($urls) {
++  public function normalizeUrls(array $urls) {
+     foreach ($urls as &$url) {
+       $url = $this->normalizeUrl($url);
+     }
+@@ -379,7 +377,7 @@ class AkamaiClient extends Client {
+    *   The queue name to check. Defaults to 'default'.
+    *
+    * @return array
+-   *    Response body of request as associative array.
++   *   Response body of request as associative array.
+    *
+    * @link https://api.ccu.akamai.com/ccu/v2/docs/#section_CheckingQueueLength
+    * @link https://developer.akamai.com/api/purge/ccu/reference.html
+@@ -421,7 +419,7 @@ class AkamaiClient extends Client {
+    *   The UUID of the purge request to check.
+    *
+    * @return \GuzzleHttp\Psr7\Response|bool
+-   *    Response to purge status request, or FALSE on failure.
++   *   Response to purge status request, or FALSE on failure.
+    */
+   public function getPurgeStatus($purge_id) {
+     try {
+@@ -460,7 +458,7 @@ class AkamaiClient extends Client {
+    * @return $this
+    */
+   public function setType($type) {
+-    $valid_types = array('cpcode', 'arl');
++    $valid_types = ['cpcode', 'arl'];
+     if (in_array($type, $valid_types)) {
+       $this->type = $type;
+     }
+@@ -479,7 +477,7 @@ class AkamaiClient extends Client {
+    * @return $this
+    */
+   public function setAction($action) {
+-    $valid_actions = array('remove', 'invalidate');
++    $valid_actions = ['remove', 'invalidate'];
+     if (in_array($action, $valid_actions)) {
+       $this->action = $action;
+     }
+@@ -498,7 +496,7 @@ class AkamaiClient extends Client {
+    * @return $this
+    */
+   public function setDomain($domain) {
+-    $valid_domains = array('staging', 'production');
++    $valid_domains = ['staging', 'production'];
+     if (in_array($domain, $valid_domains)) {
+       $this->domain = $domain;
+     }
+diff --git a/src/AkamaiClientBase.php b/src/AkamaiClientBase.php
+new file mode 100644
+index 0000000..4c1444a
+--- /dev/null
++++ b/src/AkamaiClientBase.php
+@@ -0,0 +1,491 @@
++<?php
++
++namespace Drupal\akamai;
++
++use Drupal\Component\Serialization\Json;
++use Drupal\Component\Utility\UrlHelper;
++use Drupal\Core\Config\ConfigFactoryInterface;
++use Drupal\Core\Form\FormStateInterface;
++use Drupal\Core\Plugin\PluginBase;
++use Akamai\Open\EdgeGrid\Client as EdgeGridClient;
++use GuzzleHttp\Exception\RequestException;
++use GuzzleHttp\MessageFormatter;
++use GuzzleHttp\Middleware;
++use GuzzleHttp\HandlerStack;
++use Psr\Log\LoggerInterface;
++use Symfony\Component\DependencyInjection\ContainerInterface;
++
++/**
++ * Connects to the Akamai EdgeGrid.
++ */
++abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterface {
++
++  /**
++   * The config factory.
++   *
++   * @var \Drupal\Core\Config\ConfigFactoryInterface
++   */
++  protected $configFactory;
++
++  /**
++   * An instance of an OPEN EdgeGrid Client.
++   *
++   * @var \Akamai\Open\EdgeGrid\Client
++   */
++  protected $client;
++
++  /**
++   * A config suitable for use with Akamai\Open\EdgeGrid\Client.
++   *
++   * @var array
++   */
++  protected $akamaiClientConfig;
++
++  /**
++   * Base url to which API method names are appended.
++   *
++   * @var string
++   */
++  protected $apiBaseUrl = '/ccu/v2/';
++
++  /**
++   * A logger instance.
++   *
++   * @var \Psr\Log\LoggerInterface
++   */
++  protected $logger;
++
++  /**
++   * A purge status logger.
++   *
++   * @var StatusStorage
++   */
++  protected $statusStorage;
++
++  /**
++   * An action to take, either 'remove' or 'invalidate'.
++   *
++   * @var string
++   */
++  protected $action = 'remove';
++
++  /**
++   * Domain to clear, either 'production' or 'staging'.
++   *
++   * @var string
++   */
++  protected $domain = 'production';
++
++  /**
++   * Type of purge, either 'arl' or 'cpcode'.
++   *
++   * @var string
++   */
++  protected $type = 'arl';
++
++  /**
++   * The domain for which Akamai is managing cache.
++   *
++   * @var string
++   */
++  protected $baseUrl;
++
++  /**
++   * Whether or not to log all requests and responses.
++   *
++   * @var bool
++   */
++  protected $logRequests = FALSE;
++
++  /**
++   * AkamaiClient constructor.
++   *
++   * @param array $configuration
++   *   A configuration array containing information about the plugin instance.
++   * @param string $plugin_id
++   *   The plugin_id for the plugin instance.
++   * @param array $plugin_definition
++   *   The plugin implementation definition.
++   * @param \Akamai\Open\EdgeGrid\Client $client
++   *   Akamai EdgeGrid client.
++   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
++   *   The config factory.
++   * @param \Psr\Log\LoggerInterface $logger
++   *   A logger instance.
++   * @param \Drupal\akamai\StatusStorage $status_storage
++   *   A status logger for tracking purge responses.
++   */
++  public function __construct(array $configuration, $plugin_id, array $plugin_definition, EdgeGridClient $client, ConfigFactoryInterface $config_factory, LoggerInterface $logger, StatusStorage $status_storage) {
++    parent::__construct($configuration, $plugin_id, $plugin_definition);
++    $this->logger = $logger;
++    $this->configFactory = $config_factory;
++    $this->akamaiClientConfig = $this->createClientConfig();
++    $this->statusStorage = $status_storage;
++    $this->client = $client;
++
++    $this
++      // Set action to take based on configuration.
++      ->setAction(key(array_filter($this->configFactory->get('akamai.settings')->get("action_{$plugin_id}"))))
++      // Set domain (staging or production).
++      ->setDomain(key(array_filter($this->configFactory->get('akamai.settings')->get('domain'))))
++      // Set base url for the cache (eg, example.com).
++      ->setBaseUrl($this->configFactory->get('akamai.settings')->get('basepath'))
++      // Sets logging.
++      ->setLogRequests($this->configFactory->get('akamai.settings')->get('log_requests'));
++
++    // Create an authentication object so we can sign requests.
++    $auth = AkamaiAuthentication::create($config_factory);
++
++    if ($this->logRequests) {
++      $this->enableRequestLogging();
++    }
++
++    $this->client->__construct($this->akamaiClientConfig, $auth);
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
++    return new static(
++      $configuration,
++      $plugin_id,
++      $plugin_definition,
++      $container->get('akamai.edgegridclient'),
++      $container->get('config.factory'),
++      $container->get('logger.channel.akamai'),
++      $container->get('akamai.status_storage')
++    );
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {}
++
++  /**
++   * Creates a config array for consumption by Akamai\Open\EdgeGrid\Client.
++   *
++   * @return array
++   *   The config array.
++   *
++   * @see Akamai\Open\EdgeGrid\Client::setBasicOptions
++   */
++  public function createClientConfig() {
++    $client_config = [];
++    // If we are in devel mode, use the mocked endpoint.
++    if ($this->configFactory->get('akamai.settings')->get('devel_mode') == TRUE) {
++      $client_config['base_uri'] = $this->configFactory->get('akamai.settings')->get('mock_endpoint');
++    }
++    else {
++      $client_config['base_uri'] = $this->configFactory->get('akamai.settings')->get('rest_api_url');
++    }
++
++    $client_config['timeout'] = $this->configFactory->get('akamai.settings')->get('timeout');
++
++    return $client_config;
++  }
++
++  /**
++   * Enables logging of all requests and responses.
++   *
++   * @return $this
++   */
++  public function enableRequestLogging() {
++    $formatter = new MessageFormatter('<pre>' . MessageFormatter::DEBUG . '</pre>');
++    $request_logger = Middleware::log($this->logger, $formatter);
++    $stack = HandlerStack::create();
++    $stack->push($request_logger);
++    $this->akamaiClientConfig['handler'] = $stack;
++
++    return $this;
++  }
++
++  /**
++   * Sets whether or not to log requests and responses.
++   *
++   * @param bool $log_requests
++   *   TRUE to log all requests, FALSE to not.
++   *
++   * @return $this
++   */
++  public function setLogRequests($log_requests) {
++    $this->logRequests = (bool) $log_requests;
++    return $this;
++  }
++
++  /**
++   * Purges a single URL object.
++   *
++   * @param string $url
++   *   A URL to clear.
++   *
++   * @return \GuzzleHttp\Psr7\Response
++   *   Response to purge request.
++   */
++  public function purgeUrl($url) {
++    return $this->purgeUrls([$url]);
++  }
++
++  /**
++   * Purges a list of URL objects.
++   *
++   * @param array $urls
++   *   List of URLs to purge.
++   *
++   * @return \GuzzleHttp\Psr7\Response
++   *   Response to purge request.
++   */
++  public function purgeUrls(array $urls) {
++    $urls = $this->normalizeUrls($urls);
++    foreach ($urls as $url) {
++      if ($this->isAkamaiManagedUrl($url) === FALSE) {
++        throw new \InvalidArgumentException("The URL $url is not managed by Akamai. Try setting your Akamai base url.");
++      }
++    }
++    return $this->purgeRequest($urls);
++  }
++
++  /**
++   * Purges a single cpcode object.
++   *
++   * @param string $cpcode
++   *   A cpcode to clear.
++   *
++   * @return \GuzzleHttp\Psr7\Response
++   *   Response to purge request.
++   */
++  public function purgeCpCode($cpcode) {
++    return $this->purgeCpCodes([$cpcode]);
++  }
++
++  /**
++   * Purges a list of cpcode objects.
++   *
++   * @param array $cpcodes
++   *   List of cpcodes to purge.
++   *
++   * @return \GuzzleHttp\Psr7\Response
++   *   Response to purge request.
++   */
++  public function purgeCpCodes(array $cpcodes) {
++    return $this->purgeRequest($cpcodes);
++  }
++
++  /**
++   * Create an array to pass to Akamai's purge function.
++   *
++   * @param string[] $urls
++   *   A list of URLs.
++   *
++   * @return array
++   *   An array suitable for sending to the Akamai purge endpoint.
++   */
++  public function createPurgeBody(array $urls) {
++    return [
++      'objects' => $urls,
++      'action' => $this->action,
++      'domain' => $this->domain,
++      'type' => $this->type,
++    ];
++  }
++
++  /**
++   * Given a list of URLs, ensure they are fully qualified.
++   *
++   * @param string[] $urls
++   *   A list of URLs.
++   *
++   * @return string[]
++   *   A list of fully qualified URls.
++   */
++  public function normalizeUrls(array $urls) {
++    foreach ($urls as &$url) {
++      $url = $this->normalizeUrl($url);
++    }
++    return $urls;
++  }
++
++  /**
++   * Given a URL, make sure it is fully qualified.
++   *
++   * @param string $url
++   *   A URL or Drupal path.
++   *
++   * @return string
++   *   A fully qualified URL.
++   */
++  public function normalizeUrl($url) {
++    if (UrlHelper::isExternal($url)) {
++      return $url;
++    }
++    else {
++      // Otherwise, try prepending the base URL.
++      $url = ltrim($url, '/');
++      $domain = rtrim($this->baseUrl, '/');
++      return $domain . '/' . $url;
++    }
++  }
++
++  /**
++   * Checks whether a fully qualified URL is handled by Akamai.
++   *
++   * Note this is based only on local config and doesn't check upstream.
++   *
++   * @param string $url
++   *   The URL to check.
++   *
++   * @return bool
++   *   TRUE if a url with an Akamai managed domain, FALSE if not.
++   */
++  public function isAkamaiManagedUrl($url) {
++    return strpos($url, $this->baseUrl) !== FALSE;
++  }
++
++  /**
++   * Returns the status of a previous purge request.
++   *
++   * @param string $purge_id
++   *   The UUID of the purge request to check.
++   *
++   * @return \GuzzleHttp\Psr7\Response|bool
++   *   Response to purge status request, or FALSE on failure.
++   */
++  public function getPurgeStatus($purge_id) {
++    try {
++      $response = $this->client->request(
++        'GET',
++        $this->apiBaseUrl . 'purges/' . $purge_id
++      );
++      return $response;
++    }
++    catch (RequestException $e) {
++      // @todo Better handling
++      $this->logger->error($this->formatExceptionMessage($e));
++      return FALSE;
++    }
++  }
++
++  /**
++   * Sets the type of purge.
++   *
++   * @param string $type
++   *   The type of purge, either 'arl' or 'cpcode'.
++   *
++   * @return $this
++   */
++  public function setType($type) {
++    $valid_types = ['cpcode', 'arl'];
++    if (in_array($type, $valid_types)) {
++      $this->type = $type;
++    }
++    else {
++      throw new \InvalidArgumentException('Type must be one of: ' . implode(', ', $valid_types));
++    }
++    return $this;
++  }
++
++  /**
++   * Helper function to set the action for purge request.
++   *
++   * @param string $action
++   *   Action to be taken while purging.
++   *
++   * @return $this
++   */
++  public function setAction($action) {
++    $valid_actions = $this->validActions();
++    if (in_array($action, $valid_actions)) {
++      $this->action = $action;
++    }
++    else {
++      throw new \InvalidArgumentException('Action must be one of: ' . implode(', ', $valid_actions));
++    }
++    return $this;
++  }
++
++  /**
++   * Sets the domain to clear.
++   *
++   * @param string $domain
++   *   The domain to clear, either 'production' or 'staging'.
++   *
++   * @return $this
++   */
++  public function setDomain($domain) {
++    $valid_domains = ['staging', 'production'];
++    if (in_array($domain, $valid_domains)) {
++      $this->domain = $domain;
++    }
++    else {
++      throw new \InvalidArgumentException('Domain must be one of: ' . implode(', ', $valid_domains));
++    }
++    return $this;
++  }
++
++  /**
++   * Sets Akamai base url.
++   *
++   * @param string $url
++   *   The base url of the site Akamai is managing, eg 'http://example.com'.
++   *
++   * @return $this
++   */
++  public function setBaseUrl($url) {
++    $this->baseUrl = $url;
++    return $this;
++  }
++
++  /**
++   * Sets API base url.
++   *
++   * @param string $url
++   *   A url to an API, eg '/ccu/v2/'.
++   *
++   * @return $this
++   */
++  public function setApiBaseUrl($url) {
++    $this->apiBaseUrl = $url;
++    return $this;
++  }
++
++  /**
++   * Formats a JSON error response into a string.
++   *
++   * @param \GuzzleHttp\Exception\RequestException $e
++   *   The RequestException containing the JSON error response.
++   *
++   * @return string
++   *   The formatted error message as a string.
++   */
++  protected function formatExceptionMessage(RequestException $e) {
++    $message = '';
++    // Get the full response to avoid truncation.
++    // @see https://laracasts.com/discuss/channels/general-discussion/guzzle-error-message-gets-truncated
++    if ($e->hasResponse()) {
++      $body = $e->getResponse()->getBody();
++      $error_detail = Json::decode($body);
++      if (is_array($error_detail)) {
++        foreach ($error_detail as $key => $value) {
++          $message .= "$key: $value " . PHP_EOL;
++        }
++      }
++    }
++    // Fallback to the standard message.
++    else {
++      $message = $e->getMessage();
++    }
++
++    return $message;
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function bodyIsBelowLimit(array $paths = []) {
++    $body = $this->createPurgeBody($paths);
++    $bytes = mb_strlen($body, '8bit');
++    return $bytes < self::MAX_BODY_SIZE;
++  }
++
++}
+diff --git a/src/AkamaiClientFactory.php b/src/AkamaiClientFactory.php
+new file mode 100644
+index 0000000..e1b0307
+--- /dev/null
++++ b/src/AkamaiClientFactory.php
+@@ -0,0 +1,101 @@
++<?php
++
++namespace Drupal\akamai;
++
++/**
++ * Provides a factory for Akamai client objects.
++ */
++class AkamaiClientFactory {
++
++  /**
++   * The akamai client plugin manager.
++   *
++   * @var \Drupal\akamai\AkamaiClientManager
++   */
++  protected $clientManager;
++
++  /**
++   * The client version to use for this factory.
++   *
++   * @var string
++   */
++  protected $clientVersion;
++
++  /**
++   * Constructs a new AkamaiClientFactory object.
++   *
++   * @param \Drupal\akamai\AkamaiClientManager $client_manager
++   *   The akamai client plugin manager.
++   */
++  public function __construct(AkamaiClientManager $client_manager) {
++    $this->clientManager = $client_manager;
++    $this->clientVersion = $this->clientManager->getDefaultClientVersion();
++  }
++
++  /**
++   * Sets the version of the akamai client.
++   *
++   * @param string $client_version
++   *   The version of the akamai client to use for this client factory.
++   *
++   * @return $this
++   */
++  public function setClientVersion($client_version) {
++    $this->clientVersion = $client_version;
++    return $this;
++  }
++
++  /**
++   * Gets the version of the akamai client currently in use.
++   *
++   * @return string
++   *   The version of the akamai client in use by the client factory.
++   */
++  public function getClientVersion() {
++    return $this->clientVersion;
++  }
++
++  /**
++   * Constructs a new AkamaiClient object.
++   *
++   * Normally, the version set as the default in the admin UI is used by the
++   * factory to create new AkamaiClient objects. This can be overridden through
++   * \Drupal\akamai\AkamaiClientInterface::setclientVersion() so that any new
++   * AkamaiClient object created will use the new version specified. Finally,
++   * a single AkamaiClient object can be created using a specific version,
++   * regardless of the current factory settings, by passing its plugin ID in
++   * the $client_version argument.
++   *
++   * @param string|null $client_version
++   *   (optional) The version of the akamai client to use for this object,
++   *   or NULL to use the current version.
++   *
++   * @return \Drupal\akamai\AkamaiClientInterface
++   *   An Akamai Client object.
++   *
++   * @see AkamaiClientFactory::setclientVersion()
++   */
++  public function get($client_version = NULL) {
++    $client_version = $client_version ?: $this->clientVersion;
++    return $this->clientManager->createInstance($client_version);
++  }
++
++  /**
++   * Returns the supported Akamai client versions.
++   *
++   * @param string|null $client_version
++   *   (optional) The version of the client to use, or NULL to use
++   *   the current version.
++   *
++   * @return array
++   *   An array of supported client CCU versions (e.g. v2/ v3).
++   *
++   * @see \Drupal\akamai\AkamaiClientInterface::getSupportedExtensions()
++   */
++  public function getSupportedVersions($client_version = NULL) {
++    $client_version = $client_version ?: $this->clientVersion;
++    $definition = $this->clientManager->getDefinition($client_version);
++    return call_user_func($definition['class'] . '::getSupportedVersions');
++  }
++
++}
+diff --git a/src/AkamaiClientInterface.php b/src/AkamaiClientInterface.php
+new file mode 100644
+index 0000000..cc9e392
+--- /dev/null
++++ b/src/AkamaiClientInterface.php
+@@ -0,0 +1,81 @@
++<?php
++
++namespace Drupal\akamai;
++
++use Drupal\Component\Plugin\PluginInspectionInterface;
++use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
++use Drupal\Core\Plugin\PluginFormInterface;
++
++/**
++ * Contains the \Drupal\akamai\AkamaiClientInterface interface.
++ */
++interface AkamaiClientInterface extends ContainerFactoryPluginInterface, PluginInspectionInterface, PluginFormInterface {
++
++  /**
++   * String constant for the production network.
++   */
++  const NETWORK_PRODUCTION = 'production';
++
++  /**
++   * String constant for the staging network.
++   */
++  const NETWORK_STAGING = 'staging';
++
++  /**
++   * The maximum size, in bytes, of a request body allowed by the API.
++   */
++  const MAX_BODY_SIZE = 50000;
++
++  /**
++   * Sets the domain to clear.
++   *
++   * @param string $domain
++   *   The domain to clear, either 'production' or 'staging'.
++   *
++   * @return $this
++   */
++  public function setDomain($domain);
++
++  /**
++   * Helper function to set the action for purge request.
++   *
++   * @param string $action
++   *   Action to be taken while purging.
++   *
++   * @return $this
++   */
++  public function setAction($action);
++
++  /**
++   * Sets the type of purge.
++   *
++   * @param string $type
++   *   The type of purge, either 'arl' or 'cpcode'.
++   *
++   * @return $this
++   */
++  public function setType($type);
++
++  /**
++   * Returns the status of a previous purge request.
++   *
++   * @param string $purge_id
++   *   The UUID of the purge request to check.
++   *
++   * @return \GuzzleHttp\Psr7\Response|bool
++   *   Response to purge status request, or FALSE on failure.
++   */
++  public function getPurgeStatus($purge_id);
++
++  /**
++   * Verifies that the body of a purge request will be under 50,000 bytes.
++   *
++   * @param array $paths
++   *   An array of paths to be purged.
++   *
++   * @return bool
++   *   TRUE if the body size is below the limit, otherwise FALSE.
++   */
++  public function bodyIsBelowLimit(array $paths = []);
++
++}
+diff --git a/src/AkamaiClientManager.php b/src/AkamaiClientManager.php
+new file mode 100644
+index 0000000..8be67f5
+--- /dev/null
++++ b/src/AkamaiClientManager.php
+@@ -0,0 +1,86 @@
++<?php
++
++namespace Drupal\akamai;
++
++use Drupal\Core\Cache\CacheBackendInterface;
++use Drupal\Core\Config\ConfigFactoryInterface;
++use Drupal\Core\Extension\ModuleHandlerInterface;
++use Drupal\Core\Plugin\DefaultPluginManager;
++
++/**
++ * Manages Akamai Client version plugins.
++ *
++ * @see \Drupal\akamai\Annotation\AkamaiClient
++ * @see \Drupal\akamai\AkamaiClientInterface
++ * @see \Drupal\akamai\AkamaiClientBase
++ * @see plugin_api
++ */
++class AkamaiClientManager extends DefaultPluginManager {
++
++  /**
++   * The config factory.
++   *
++   * @var \Drupal\Core\Config\ConfigFactoryInterface
++   */
++  protected $configFactory;
++
++  /**
++   * Constructs the AkamaiClientManager object.
++   *
++   * @param \Traversable $namespaces
++   *   An object that implements \Traversable which contains the root paths
++   *   keyed by the corresponding namespace to look for plugin implementations.
++   * @param \Drupal\Core\Cache\CacheBackendInterface $cache_backend
++   *   Cache backend instance to use.
++   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
++   *   The module handler.
++   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
++   *   The config factory.
++   */
++  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, ConfigFactoryInterface $config_factory) {
++    parent::__construct('Plugin/Client', $namespaces, $module_handler, 'Drupal\akamai\AkamaiClientInterface', 'Drupal\akamai\Annotation\AkamaiClient');
++
++    $this->alterInfo('akamai_client_plugins');
++    $this->setCacheBackend($cache_backend, 'akamai_client_plugins');
++    $this->configFactory = $config_factory;
++  }
++
++  /**
++   * Gets the default Akamai client version.
++   *
++   * @return string|bool
++   *   Version of the default client, or FALSE on error.
++   */
++  public function getDefaultClientVersion() {
++    $client_version = $this->configFactory->get('akamai.settings')->get('version');
++    $clients = $this->getAvailableVersions();
++
++    if (!isset($clients[$client_version]) || !class_exists($clients[$client_version]['class'])) {
++      // The selected client isn't available so return the first one found. If
++      // none are available this will return FALSE.
++      reset($clients);
++      $client_version = key($clients);
++    }
++
++    return $client_version;
++  }
++
++  /**
++   * Gets a list of available clients.
++   *
++   * @return array
++   *   An array with the version names as keys and the descriptions as values.
++   */
++  public function getAvailableVersions() {
++    // Use plugin system to get list of available clients.
++    $versions = $this->getDefinitions();
++
++    $output = [];
++    foreach ($versions as $id => $definition) {
++      $output[$id] = $definition;
++    }
++
++    return $output;
++  }
++
++}
+diff --git a/src/Annotation/AkamaiClient.php b/src/Annotation/AkamaiClient.php
+new file mode 100644
+index 0000000..898bcd6
+--- /dev/null
++++ b/src/Annotation/AkamaiClient.php
+@@ -0,0 +1,41 @@
++<?php
++
++namespace Drupal\akamai\Annotation;
++
++use Drupal\Component\Annotation\Plugin;
++
++/**
++ * Defines a Plugin annotation object for the Akamai client plugin.
++ *
++ * An Akamai client provides a specific version of the client CCU.
++ *
++ * Plugin namespace: Plugin\Client
++ *
++ * For a working example, see
++ * \Drupal\akamai\Plugin\Client\AkamaiClientV2
++ *
++ * @see plugin_api
++ *
++ * @Annotation
++ */
++class AkamaiClient extends Plugin {
++
++  /**
++   * The plugin ID.
++   *
++   * @var string
++   */
++  public $id;
++
++  /**
++   * The title of the Akamai client.
++   *
++   * The string should be wrapped in a @Translation().
++   *
++   * @var \Drupal\Core\Annotation\Translation
++   *
++   * @ingroup plugin_translatable
++   */
++  public $title;
++
++}
+diff --git a/src/Commands/AkamaiCommands.php b/src/Commands/AkamaiCommands.php
+index f076d08..8e45e67 100644
+--- a/src/Commands/AkamaiCommands.php
++++ b/src/Commands/AkamaiCommands.php
+@@ -12,7 +12,9 @@ class AkamaiCommands extends DrushCommands {
+   /**
+    * Akamai clear cpcode.
+    *
+-   * @param $cpcode A cpcode to clear. You can provide as many cpcodes you like.
++   * @param string $cpcode
++   *   A cpcode to clear. You can provide as many cpcodes you like.
++   *
+    * @option action Clearing action type.
+    * @option domain The Akamai domain to use for cache clearing.
+    *
+@@ -20,10 +22,10 @@ class AkamaiCommands extends DrushCommands {
+    * @aliases akcc
+    */
+   public function clearCpCode($cpcode, $options = [
+-    'action' => 'remove',
++    'action' => 'invalidate',
+     'domain' => 'production',
+   ]) {
+-    $client = \Drupal::service('akamai.edgegridclient');
++    $client = \Drupal::service('akamai.client.factory')->get();
+     $client->setType('cpcode');
+     $client->setAction($options['action']);
+     $client->setDomain($options['domain']);
+@@ -37,7 +39,9 @@ class AkamaiCommands extends DrushCommands {
+   /**
+    * Akamai clear URL.
+    *
+-   * @param $path A path to clear. You can provide as many paths you like.
++   * @param string $path
++   *   A path to clear. You can provide as many paths you like.
++   *
+    * @option action Clearing action type.
+    * @option domain The Akamai domain to use for cache clearing.
+    *
+@@ -45,10 +49,10 @@ class AkamaiCommands extends DrushCommands {
+    * @aliases akcu
+    */
+   public function clearUrl($path, $options = [
+-    'action' => 'remove',
++    'action' => 'invalidate',
+     'domain' => 'production',
+   ]) {
+-    $client = \Drupal::service('akamai.edgegridclient');
++    $client = \Drupal::service('akamai.client.factory')->get();
+     $client->setAction($options['action']);
+     $client->setDomain($options['domain']);
+     $paths = explode(' ', $path);
+diff --git a/src/Controller/StatusLogController.php b/src/Controller/StatusLogController.php
+index 8ce97b2..e931ac9 100644
+--- a/src/Controller/StatusLogController.php
++++ b/src/Controller/StatusLogController.php
+@@ -44,6 +44,8 @@ class StatusLogController extends ControllerBase {
+    *
+    * @param \Drupal\akamai\StatusStorage $status_storage
+    *   A status storage service, so we can reference statuses.
++   * @param \Drupal\Core\Datetime\DateFormatter $date_formatter
++   *   A date formatter service.
+    */
+   public function __construct(StatusStorage $status_storage, DateFormatter $date_formatter) {
+     $this->statusStorage = $status_storage;
+@@ -57,7 +59,7 @@ class StatusLogController extends ControllerBase {
+    *   A table render array of all requests statuses.
+    */
+   public function listAction() {
+-    $client = \Drupal::service('akamai.edgegridclient');
++    $client = \Drupal::service('akamai.client.factory')->get();
+     $length = $client->getQueueLength();
+ 
+     $statuses = $this->statusStorage->getResponseStatuses();
+@@ -95,7 +97,7 @@ class StatusLogController extends ControllerBase {
+   /**
+    * Creates a table row from a status.
+    *
+-   * @param PurgeStatus $status
++   * @param \Drupal\akamai\PurgeStatus $status
+    *   A status as an array.
+    *
+    * @return array
+@@ -144,7 +146,7 @@ class StatusLogController extends ControllerBase {
+     $build[]['#markup'] = '<p>' . $this->l($this->t('Back to list'), Url::fromRoute('akamai.statuslog_list')) . '</p>';
+ 
+     // @todo inject
+-    $client = \Drupal::service('akamai.edgegridclient');
++    $client = \Drupal::service('akamai.client.factory')->get();
+     // Get a new status update.
+     $status = Json::decode($client->getPurgeStatus($purge_id)->getBody());
+     // Save it in storage.
+@@ -169,7 +171,7 @@ class StatusLogController extends ControllerBase {
+   /**
+    * Builds a table render array for an individual purge request.
+    *
+-   * @param PurgeStatus $status
++   * @param \Drupal\akamai\PurgeStatus $status
+    *   The purge status.
+    *
+    * @return array
+diff --git a/src/EventSubscriber/ConfigSubscriber.php b/src/EventSubscriber/ConfigSubscriber.php
+index ce30cf4..4cf49d2 100644
+--- a/src/EventSubscriber/ConfigSubscriber.php
++++ b/src/EventSubscriber/ConfigSubscriber.php
+@@ -30,7 +30,7 @@ class ConfigSubscriber implements EventSubscriberInterface {
+           $event->isChanged('client_secret') or
+           $event->isChanged('access_token')
+       ) {
+-        \Drupal::state()->set('akamai.valid_credentials', \Drupal::service('akamai.edgegridclient')->isAuthorized());
++        \Drupal::state()->set('akamai.valid_credentials', \Drupal::service('akamai.client.factory')->get()->isAuthorized());
+       }
+     }
+ 
+@@ -40,8 +40,8 @@ class ConfigSubscriber implements EventSubscriberInterface {
+    * {@inheritdoc}
+    */
+   public static function getSubscribedEvents() {
+-    $events = array();
+-    $events[ConfigEvents::SAVE][] = array('onConfigSave', 0);
++    $events = [];
++    $events[ConfigEvents::SAVE][] = ['onConfigSave', 0];
+     return $events;
+   }
+ 
+diff --git a/src/Form/CacheControlForm.php b/src/Form/CacheControlForm.php
+index d2b9c90..b1c1333 100644
+--- a/src/Form/CacheControlForm.php
++++ b/src/Form/CacheControlForm.php
+@@ -2,7 +2,8 @@
+ 
+ namespace Drupal\akamai\Form;
+ 
+-use Drupal\akamai\AkamaiClient;
++use Drupal\akamai\AkamaiClientFactory;
++use Drupal\Component\Utility\Unicode;
+ use Drupal\Component\Utility\UrlHelper;
+ use Drupal\Core\Form\FormBase;
+ use Drupal\Core\Form\FormStateInterface;
+@@ -17,25 +18,25 @@ class CacheControlForm extends FormBase {
+   /**
+    * The akamai client.
+    *
+-   * @var \Drupal\akamai\AkamaiClient
++   * @var \Drupal\akamai\AkamaiClientInterface
+    */
+   protected $akamaiClient;
+ 
+   /**
+    * A path alias manager.
+    *
+-   * @var \Drupal\Core\Path\AliasManager.
++   * @var \Drupal\Core\Path\AliasManager
+    */
+   protected $aliasManager;
+ 
+   /**
+    * Constructs a new CacheControlForm.
+    *
+-   * @param \Drupal\akamai\AkamaiClient $akamai_client
+-   *   The akamai client.
++   * @param \Drupal\akamai\AkamaiClientFactory $factory
++   *   The akamai client factory.
+    */
+-  public function __construct(AkamaiClient $akamai_client) {
+-    $this->akamaiClient = $akamai_client;
++  public function __construct(AkamaiClientFactory $factory) {
++    $this->akamaiClient = $factory->get();
+   }
+ 
+   /**
+@@ -43,7 +44,7 @@ class CacheControlForm extends FormBase {
+    */
+   public static function create(ContainerInterface $container) {
+     return new static(
+-      $container->get('akamai.edgegridclient')
++      $container->get('akamai.client.factory')
+     );
+   }
+ 
+@@ -59,7 +60,7 @@ class CacheControlForm extends FormBase {
+    */
+   public function buildForm(array $form, FormStateInterface $form_state) {
+     $config = $this->config('akamai.settings');
+-    $form = array();
++    $version = $this->akamaiClient->getPluginId();
+ 
+     // Disable the form and show a message if we are not authenticated.
+     $form_disabled = FALSE;
+@@ -81,54 +82,54 @@ class CacheControlForm extends FormBase {
+       ]
+     );
+ 
+-    $form['paths'] = array(
++    $form['paths'] = [
+       '#type' => 'textarea',
+       '#title' => $this->t('Paths/URLs/CPCodes'),
+       '#description' => $paths_description,
+       '#required' => TRUE,
+       '#default_value' => $form_state->get('paths'),
+-    );
++    ];
+ 
+     $domain_override_default = $form_state->get('domain_override') ?: key(array_filter($config->get('domain')));
+-    $form['domain_override'] = array(
++    $form['domain_override'] = [
+       '#type' => 'select',
+       '#title' => $this->t('Domain'),
+-      '#options' => array(
++      '#options' => [
+         'production' => $this->t('Production'),
+         'staging' => $this->t('Staging'),
+-      ),
++      ],
+       '#default_value' => $domain_override_default,
+       '#description' => $this->t('The Akamai domain to use for cache clearing.  Defaults to the Domain setting from the settings page.'),
+-    );
++    ];
+ 
+-    $action_default = $form_state->get('action') ?: key(array_filter($config->get('action')));
+-    $form['action'] = array(
++    $action_default = $form_state->get('action') ?: $config->get("action_{$version}");
++    $actions = $this->akamaiClient->validActions();
++    $form['action'] = [
+       '#type' => 'radios',
+       '#title' => $this->t('Clearing Action Type'),
+-      '#options' => array(
+-        'remove' => $this->t('Remove'),
+-        'invalidate' => $this->t('Invalidate'),
+-      ),
+-      '#default_value' => $action_default,
++      '#options' => array_combine($actions, array_map(function ($action) {
++        return Unicode::ucwords($action);
++      }, $actions)),
++      '#default_value' => key(array_filter($action_default)),
+       '#description' => $this->t('<b>Remove:</b> Purge the content from Akamai edge server caches. The next time the edge server receives a request for the content, it will retrieve the current version from the origin server. If it cannot retrieve a current version, it will follow instructions in your edge server configuration.<br/><br/><b>Invalidate:</b> Mark the cached content as invalid. The next time the Akamai edge server receives a request for the content, it will send an HTTP conditional get (If-Modified-Since) request to the origin. If the content has changed, the origin server will return a full fresh copy; otherwise, the origin normally will respond that the content has not changed, and Akamai can serve the already-cached content.<br/><br/><b>Note that <em>Remove</em> can increase the load on the origin more than <em>Invalidate</em>.</b> With <em>Invalidate</em>, objects are not removed from cache and full objects are not retrieved from the origin unless they are newer than the cached versions.'),
+-    );
++    ];
+ 
+-    $form['method'] = array(
++    $form['method'] = [
+       '#type' => 'radios',
+       '#title' => $this->t('Purge Method'),
+-      '#options' => array(
++      '#options' => [
+         'url'    => $this->t('URL'),
+         'cpcode' => $this->t('Content Provider Code'),
+-      ),
++      ],
+       '#default_value' => $form_state->get('method') ?: 'url',
+       '#description' => $this->t('The Akamai API method to use for cache purge requests.'),
+-    );
++    ];
+ 
+-    $form['submit'] = array(
++    $form['submit'] = [
+       '#type' => 'submit',
+       '#value' => $this->t('Start Refreshing Content'),
+       '#disabled' => $form_disabled,
+-    );
++    ];
+ 
+     return $form;
+   }
+@@ -193,7 +194,7 @@ class CacheControlForm extends FormBase {
+     $action = $form_state->getValue('action');
+     $method = $form_state->getValue('method');
+     $objects = explode(PHP_EOL, $form_state->getValue('paths'));
+-    $urls_to_clear = array();
++    $urls_to_clear = [];
+ 
+     if ($method == 'url') {
+       foreach ($objects as $path) {
+@@ -230,7 +231,7 @@ class CacheControlForm extends FormBase {
+    * Shows a message to the user if not authenticated to the Akamai API.
+    */
+   protected function showAuthenticationWarning() {
+-    $message = $this->t('You are not authenticated to Akamai CCU v2. Until you authenticate, you will not be able to clear URLs from the Akamai cache. <a href=:url">Update settings now</a>.', [':url' => Url::fromRoute('akamai.settings')]);
++    $message = $this->t('You are not authenticated to Akamai CCU v2. Until you authenticate, you will not be able to clear URLs from the Akamai cache. <a href=:url">Update settings now</a>.', [':url' => Url::fromRoute('akamai.settings')->toString()]);
+     drupal_set_message($message, 'warning');
+   }
+ 
+diff --git a/src/Form/ClearUrlForm.php b/src/Form/ClearUrlForm.php
+index f62a602..f0ff699 100644
+--- a/src/Form/ClearUrlForm.php
++++ b/src/Form/ClearUrlForm.php
+@@ -21,23 +21,21 @@ class ClearUrlForm extends FormBase {
+    * {@inheritdoc}
+    */
+   public function buildForm(array $form, FormStateInterface $form_state) {
+-    $form = array();
+-
+     $current_uri = $this->getRequest()->getRequestUri();
+ 
+-    $form['path'] = array(
++    $form['path'] = [
+       '#type'  => 'hidden',
+       '#value' => $current_uri,
+-    );
+-    $form['message'] = array(
++    ];
++    $form['message'] = [
+       '#type'  => 'item',
+       '#title' => $this->t('Refresh URL'),
+       '#markup' => $current_uri,
+-    );
+-    $form['submit'] = array(
++    ];
++    $form['submit'] = [
+       '#type'  => 'submit',
+       '#value' => $this->t('Refresh Akamai Cache'),
+-    );
++    ];
+ 
+     return $form;
+   }
+@@ -47,8 +45,8 @@ class ClearUrlForm extends FormBase {
+    */
+   public function submitForm(array &$form, FormStateInterface $form_state) {
+     $uri_to_purge = $form_state->getValues()['path'];
+-    \Drupal::service('akamai.edgegridclient')->purgeUrl($uri_to_purge);
+-    drupal_set_message($this->t('Asked Akamai to purge :uri', array(':uri' => $uri_to_purge)));
++    \Drupal::service('akamai.client.factory')->get()->purgeUrl($uri_to_purge);
++    drupal_set_message($this->t('Asked Akamai to purge :uri', [':uri' => $uri_to_purge]));
+   }
+ 
+ }
+diff --git a/src/Form/ConfigForm.php b/src/Form/ConfigForm.php
+index a03720a..fd90b7a 100644
+--- a/src/Form/ConfigForm.php
++++ b/src/Form/ConfigForm.php
+@@ -2,6 +2,7 @@
+ 
+ namespace Drupal\akamai\Form;
+ 
++use Drupal\akamai\AkamaiClientManager;
+ use Drupal\Core\Config\ConfigFactory;
+ use Drupal\Core\Form\ConfigFormBase;
+ use Drupal\Core\Form\FormStateInterface;
+@@ -14,16 +15,28 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
+  */
+ class ConfigForm extends ConfigFormBase {
+ 
++  /**
++   * An array containing currently available client versions.
++   *
++   * @var \Drupal\akamai\AkamaiClientInterface[]
++   */
++  protected $availableVersions = [];
++
+   /**
+    * Constructs a new ConfigForm.
+    *
+-   * @param ConfigFactory $configFactory
++   * @param \Drupal\Core\Config\ConfigFactory $configFactory
+    *   The ConfigFactory service.
+-   * @param RequestStack $request_stack
++   * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
+    *   The request_stack service.
++   * @param \Drupal\akamai\AkamaiClientManager $manager
++   *   The Akamai Client plugin manager.
+    */
+-  public function __construct(ConfigFactory $configFactory, RequestStack $request_stack) {
++  public function __construct(ConfigFactory $configFactory, RequestStack $request_stack, AkamaiClientManager $manager) {
+     $this->requestStack = $request_stack;
++    foreach ($manager->getAvailableVersions() as $id => $definition) {
++      $this->availableVersions[$id] = $manager->createInstance($id);
++    }
+     parent::__construct($configFactory);
+   }
+ 
+@@ -33,7 +46,8 @@ class ConfigForm extends ConfigFormBase {
+   public static function create(ContainerInterface $container) {
+     return new static(
+       $container->get('config.factory'),
+-      $container->get('request_stack')
++      $container->get('request_stack'),
++      $container->get('akamai.client.manager')
+     );
+   }
+ 
+@@ -64,7 +78,6 @@ class ConfigForm extends ConfigFormBase {
+    * {@inheritdoc}
+    */
+   public function buildForm(array $form, FormStateInterface $form_state) {
+-    $form = array();
+     if ($this->isHttps() === FALSE) {
+       $this->httpsWarning();
+     }
+@@ -75,111 +88,140 @@ class ConfigForm extends ConfigFormBase {
+     $luna_url = 'https://developer.akamai.com/introduction/Prov_Creds.html';
+     $luna_uri = Url::fromUri($luna_url);
+ 
+-    $form['akamai_credentials_fieldset'] = array(
++    $form['akamai_credentials_fieldset'] = [
+       '#type' => 'fieldset',
+-      '#title' => $this->t('Akamai CCUv2 Credentials'),
+-      '#description' => $this->t('API Credentials for Akamai. Someone with Luna access will need to set this up. See @link for more.', array('@link' => $this->l($luna_url, $luna_uri))),
+-    );
++      '#title' => $this->t('Akamai CCU Credentials'),
++      '#description' => $this->t('API Credentials for Akamai. Someone with Luna access will need to set this up. See @link for more.', ['@link' => $this->l($luna_url, $luna_uri)]),
++    ];
+ 
+-    $form['akamai_credentials_fieldset']['storage_method'] = array(
++    $form['akamai_credentials_fieldset']['storage_method'] = [
+       '#type' => 'radios',
+       '#title' => $this->t('Credential storage method'),
+       '#default_value' => $config->get('storage_method') ?: 'database',
+-      '#options' => array(
++      '#options' => [
+         'database' => $this->t('Database'),
+         'file' => $this->t('.edgerc file'),
+-      ),
++      ],
+       '#required' => TRUE,
+       '#description' => $this->t('Credentials may be stored in the database or in a file. See the README file for more information.'),
+-    );
++    ];
+ 
+-    $database_field_states = array(
+-      'required' => array(
+-        ':input[name="storage_method"]' => array('value' => 'database'),
+-      ),
+-      'visible' => array(
+-        ':input[name="storage_method"]' => array('value' => 'database'),
+-      ),
+-      'optional' => array(
+-        ':input[name="storage_method"]' => array('value' => 'file'),
+-      ),
+-      'invisible' => array(
+-        ':input[name="storage_method"]' => array('value' => 'file'),
+-      ),
+-    );
+-    $file_field_states = array(
+-      'required' => array(
+-        ':input[name="storage_method"]' => array('value' => 'file'),
+-      ),
+-      'visible' => array(
+-        ':input[name="storage_method"]' => array('value' => 'file'),
+-      ),
+-      'optional' => array(
+-        ':input[name="storage_method"]' => array('value' => 'database'),
+-      ),
+-      'invisible' => array(
+-        ':input[name="storage_method"]' => array('value' => 'database'),
+-      ),
+-    );
++    $database_field_states = [
++      'required' => [
++        ':input[name="storage_method"]' => ['value' => 'database'],
++      ],
++      'visible' => [
++        ':input[name="storage_method"]' => ['value' => 'database'],
++      ],
++      'optional' => [
++        ':input[name="storage_method"]' => ['value' => 'file'],
++      ],
++      'invisible' => [
++        ':input[name="storage_method"]' => ['value' => 'file'],
++      ],
++    ];
++    $file_field_states = [
++      'required' => [
++        ':input[name="storage_method"]' => ['value' => 'file'],
++      ],
++      'visible' => [
++        ':input[name="storage_method"]' => ['value' => 'file'],
++      ],
++      'optional' => [
++        ':input[name="storage_method"]' => ['value' => 'database'],
++      ],
++      'invisible' => [
++        ':input[name="storage_method"]' => ['value' => 'database'],
++      ],
++    ];
+ 
+-    $form['akamai_credentials_fieldset']['rest_api_url'] = array(
++    $form['akamai_credentials_fieldset']['rest_api_url'] = [
+       '#type' => 'url',
+       '#title' => $this->t('REST API URL'),
+-      '#description'   => $this->t('The URL of the Akamai CCUv2 API host. It should be in the format *.purge.akamaiapis.net/'),
++      '#description'   => $this->t('The URL of the Akamai CCU API host. It should be in the format *.purge.akamaiapis.net/'),
+       '#default_value' => $config->get('rest_api_url'),
+       '#states' => $database_field_states,
+-    );
++    ];
+ 
+-    $form['akamai_credentials_fieldset']['access_token'] = array(
++    $form['akamai_credentials_fieldset']['access_token'] = [
+       '#type' => 'textfield',
+       '#title' => $this->t('Access Token'),
+       '#description'   => $this->t('Access token.'),
+       '#default_value' => $config->get('access_token'),
+       '#states' => $database_field_states,
+-    );
++    ];
+ 
+-    $form['akamai_credentials_fieldset']['client_token'] = array(
++    $form['akamai_credentials_fieldset']['client_token'] = [
+       '#type' => 'textfield',
+       '#title' => $this->t('Client Token'),
+       '#description'   => $this->t('Client token.'),
+       '#default_value' => $config->get('client_token'),
+       '#states' => $database_field_states,
+-    );
++    ];
+ 
+-    $form['akamai_credentials_fieldset']['client_secret'] = array(
++    $form['akamai_credentials_fieldset']['client_secret'] = [
+       '#type' => 'textfield',
+       '#title' => $this->t('Client Secret'),
+       '#description'   => $this->t('Client secret.'),
+       '#default_value' => $config->get('client_secret'),
+       '#states' => $database_field_states,
+-    );
++    ];
+ 
+-    $form['akamai_credentials_fieldset']['edgerc_path'] = array(
++    $form['akamai_credentials_fieldset']['edgerc_path'] = [
+       '#type' => 'textfield',
+       '#title' => $this->t('Path to .edgerc file'),
+       '#default_value' => $config->get('edgerc_path') ?: '',
+       '#states' => $file_field_states,
+-    );
++    ];
+ 
+-    $form['akamai_credentials_fieldset']['edgerc_section'] = array(
++    $form['akamai_credentials_fieldset']['edgerc_section'] = [
+       '#type' => 'textfield',
+       '#title' => $this->t('Section of .edgerc file to use for the CCU API'),
+       '#default_value' => $config->get('edgerc_section') ?: 'default',
+       '#states' => $file_field_states,
+-    );
++    ];
++
++    $form['ccu_version'] = [
++      '#type' => 'radios',
++      '#title' => $this->t('CCU Version'),
++      '#default_value' => $config->get('version') ?: 'v2',
++      '#options' => array_map(function ($version) {
++        return $version->getPluginDefinition()['title'];
++      }, $this->availableVersions),
++      '#required' => TRUE,
++      '#description' => $this->t('Select which Akamai client version to use.'),
++      // '#access' => FALSE, Uncomment in order to alter this value.
++    ];
++
++    foreach ($this->availableVersions as $id => $version) {
++      $definition = $version->getPluginDefinition();
++      $form['akamai_version_settings']['#options'][$id] = $definition['title'];
++      $form['akamai_version_settings'][$id] = [
++        '#type' => 'details',
++        '#title' => $this->t('@version settings', ['@version' => $definition['title']]),
++        '#open' => TRUE,
++        '#tree' => TRUE,
++        '#states' => [
++          'visible' => [
++            ':radio[name="ccu_version"]' => ['value' => $id],
++          ],
++        ],
++      ];
++      $form['akamai_version_settings'][$id] += $version->buildConfigurationForm([], $form_state);
++    }
+ 
+     global $base_url;
+     $basepath = $config->get('basepath') ?: $base_url;
+ 
+-    $form['basepath'] = array(
++    $form['basepath'] = [
+       '#type' => 'textfield',
+       '#title' => $this->t('Base Path'),
+       '#default_value' => $basepath,
+       '#description' => $this->t('The URL of the base path (fully qualified domain name) of the site.  This will be used as a prefix for all cache clears (Akamai indexes on the full URI). e.g. "http://www.example.com"'),
+       '#required' => TRUE,
+-    );
++    ];
+ 
+-    $form['timeout'] = array(
++    $form['timeout'] = [
+       '#type' => 'textfield',
+       '#title' => $this->t('Timeout Length'),
+       '#description' => $this->t("The timeout in seconds used when sending the cache clear request to Akamai's servers. Most users will not need to change this value."),
+@@ -187,73 +229,61 @@ class ConfigForm extends ConfigFormBase {
+       '#maxlength' => 3,
+       '#default_value' => $config->get('timeout'),
+       '#required' => TRUE,
+-    );
++    ];
+ 
+-    $form['domain'] = array(
++    $form['domain'] = [
+       '#type' => 'select',
+       '#title' => $this->t('Domain'),
+       '#default_value' => $this->getMappingKey($config->get('domain')),
+-      '#options' => array(
++      '#options' => [
+         'production' => $this->t('Production'),
+         'staging' => $this->t('Staging'),
+-      ),
++      ],
+       '#description' => $this->t('The Akamai domain to use for cache clearing.'),
+       '#required' => TRUE,
+-    );
+-
+-    $form['action'] = array(
+-      '#type' => 'select',
+-      '#title' => $this->t('Clearing Action Type Default'),
+-      '#default_value' => $this->getMappingKey($config->get('action')),
+-      '#options' => array(
+-        'remove' => $this->t('Remove'),
+-        'invalidate' => $this->t('Invalidate'),
+-      ),
+-      '#description' => $this->t('The default clearing action. The options are <em>remove</em> (which removes the item from the Akamai cache) and <em>invalidate</em> (which leaves the item in the cache, but invalidates it so that the origin will be hit on the next request).'),
+-      '#required' => TRUE,
+-    );
++    ];
+ 
+-    $form['status_expire'] = array(
++    $form['status_expire'] = [
+       '#type' => 'textfield',
+       '#title' => t('Purge Status expiry'),
+       '#default_value' => $config->get('status_expire'),
+       '#description' => $this->t('This module keeps a log of purge statuses. They are automatically deleted after this amount of time (in seconds).'),
+       '#size' => 12,
+-    );
++    ];
+ 
+-    $form['devel_fieldset'] = array(
++    $form['devel_fieldset'] = [
+       '#type' => 'fieldset',
+       '#title' => t('Development Options'),
+-    );
++    ];
+ 
+-    $form['devel_fieldset']['disabled'] = array(
++    $form['devel_fieldset']['disabled'] = [
+       '#type' => 'checkbox',
+       '#title' => $this->t('Disable all calls to Akamai'),
+       '#default_value' => $config->get('disabled'),
+       '#description' => $this->t('Killswitch - disable Akamai cache clearing entirely.'),
+-    );
++    ];
+ 
+-    $form['devel_fieldset']['devel_mode'] = array(
++    $form['devel_fieldset']['devel_mode'] = [
+       '#type' => 'checkbox',
+       '#title' => $this->t('Use development mode'),
+       '#default_value' => $config->get('devel_mode'),
+       '#description' => $this->t('Use a Mock API instead of a live one.'),
+-    );
++    ];
+ 
+-    $form['devel_fieldset']['log_requests'] = array(
++    $form['devel_fieldset']['log_requests'] = [
+       '#type' => 'checkbox',
+       '#title' => $this->t('Log requests'),
+       '#default_value' => $config->get('log_requests'),
+       '#description' => $this->t('Log all requests and responses.'),
+-    );
++    ];
+ 
+-    $form['devel_fieldset']['mock_endpoint'] = array(
++    $form['devel_fieldset']['mock_endpoint'] = [
+       '#type' => 'url',
+       '#size' => 100,
+       '#title' => $this->t('Mock endpoint URI'),
+       '#default_value' => $config->get('mock_endpoint'),
+       '#description' => $this->t('Mock endpoint used in development mode'),
+-    );
++    ];
+ 
+     return parent::buildForm($form, $form_state);
+   }
+@@ -262,12 +292,19 @@ class ConfigForm extends ConfigFormBase {
+    * {@inheritdoc}
+    */
+   public function validateForm(array &$form, FormStateInterface $form_state) {
+-    $int_fields = array('timeout', 'status_expire');
++    parent::validateForm($form, $form_state);
++
++    $int_fields = ['timeout', 'status_expire'];
+     foreach ($int_fields as $field) {
+       if (!ctype_digit($form_state->getValue($field))) {
+         $form_state->setErrorByName($field, $this->t('Please enter only integer values in this field.'));
+       }
+     }
++
++    // Call the form validation handler for each of the versions.
++    foreach ($this->availableVersions as $version) {
++      $version->validateConfigurationForm($form, $form_state);
++    }
+   }
+ 
+   /**
+@@ -277,6 +314,7 @@ class ConfigForm extends ConfigFormBase {
+     $values = $form_state->getValues();
+ 
+     $this->config('akamai.settings')
++      ->set('version', $values['ccu_version'])
+       ->set('rest_api_url', $values['rest_api_url'])
+       ->set('storage_method', $values['storage_method'])
+       ->set('client_token', $values['client_token'])
+@@ -288,13 +326,19 @@ class ConfigForm extends ConfigFormBase {
+       ->set('timeout', $values['timeout'])
+       ->set('status_expire', $values['status_expire'])
+       ->set('domain', $this->saveDomain($values['domain']))
+-      ->set('action', $this->saveAction($values['action']))
+       ->set('devel_mode', $values['devel_mode'])
+       ->set('mock_endpoint', $values['mock_endpoint'])
+       ->set('log_requests', $values['log_requests'])
+       ->set('disabled', $values['disabled'])
+       ->save();
+ 
++    // Call the form submit handler for each of the versions.
++    foreach ($this->availableVersions as $version) {
++      $version->submitConfigurationForm($form, $form_state);
++    }
++
++    parent::submitForm($form, $form_state);
++
+     $this->checkCredentials();
+     drupal_set_message($this->t('Settings saved.'));
+   }
+@@ -303,7 +347,7 @@ class ConfigForm extends ConfigFormBase {
+    * Ensures credentials supplied actually work.
+    */
+   protected function checkCredentials() {
+-    $client = \Drupal::service('akamai.edgegridclient');
++    $client = \Drupal::service('akamai.client.factory')->get();
+     if ($client->isAuthorized()) {
+       drupal_set_message('Authenticated to Akamai.');
+     }
+@@ -313,7 +357,7 @@ class ConfigForm extends ConfigFormBase {
+   }
+ 
+   /**
+-   * Return the key of the active selection in a domain or action mapping.
++   * Return the key of the active selection in a domain mapping.
+    *
+    * @param array $array
+    *   A settings array corresponding to a mapping with booleans against keys.
+@@ -321,7 +365,7 @@ class ConfigForm extends ConfigFormBase {
+    * @return mixed
+    *   The key of the first value with boolean TRUE.
+    */
+-  protected function getMappingKey($array) {
++  protected function getMappingKey(array $array) {
+     return key(array_filter($array));
+   }
+ 
+@@ -335,34 +379,15 @@ class ConfigForm extends ConfigFormBase {
+    *   An array suitable for saving back to config.
+    */
+   protected function saveDomain($value) {
+-    $domain = array(
++    $domain = [
+       'production' => FALSE,
+       'staging' => FALSE,
+-    );
++    ];
+ 
+     $domain[$value] = TRUE;
+     return $domain;
+   }
+ 
+-  /**
+-   * Converts a form value for 'action' back to a saveable array.
+-   *
+-   * @param string $value
+-   *   The value submitted via the form.
+-   *
+-   * @return array
+-   *   An array suitable for saving back to config.
+-   */
+-  protected function saveAction($value) {
+-    $action = array(
+-      'remove' => FALSE,
+-      'invalidate' => FALSE,
+-    );
+-
+-    $action[$value] = TRUE;
+-    return $action;
+-  }
+-
+   /**
+    * Checks that the form is being accessed over HTTPs.
+    *
+diff --git a/src/Plugin/Block/CacheClearBlock.php b/src/Plugin/Block/CacheClearBlock.php
+index 229d164..10b9c1f 100644
+--- a/src/Plugin/Block/CacheClearBlock.php
++++ b/src/Plugin/Block/CacheClearBlock.php
+@@ -61,9 +61,9 @@ class CacheClearBlock extends BlockBase implements ContainerFactoryPluginInterfa
+    */
+   public function build() {
+     $form = $this->formBuilder->getForm('Drupal\akamai\Form\ClearUrlForm');
+-    return array(
++    return [
+       'cache_clear_form' => $form,
+-    );
++    ];
+   }
+ 
+   /**
+diff --git a/src/Plugin/Client/AkamaiClientV2.php b/src/Plugin/Client/AkamaiClientV2.php
+new file mode 100644
+index 0000000..c71535f
+--- /dev/null
++++ b/src/Plugin/Client/AkamaiClientV2.php
+@@ -0,0 +1,193 @@
++<?php
++
++namespace Drupal\akamai\Plugin\Client;
++
++use Drupal\Component\Serialization\Json;
++use Drupal\Core\Form\FormStateInterface;
++use Drupal\akamai\AkamaiClientBase;
++
++/**
++ * Defines the CCUv2 client version for Akamai.
++ *
++ * @AkamaiClient(
++ *   id = "v2",
++ *   title = @Translation("Akamai Client CCUv2")
++ * )
++ */
++class AkamaiClientV2 extends AkamaiClientBase {
++
++  /**
++   * The queue name to clear.
++   *
++   * @var string
++   */
++  protected $queue = 'default';
++
++  /**
++   * Checks that we can connect with the supplied credentials.
++   *
++   * @return bool
++   *   TRUE if authorised, FALSE if not.
++   */
++  public function isAuthorized() {
++    try {
++      $response = $this->doGetQueue();
++    }
++    catch (RequestException $e) {
++      // @todo better handling
++      $this->logger->error($this->formatExceptionMessage($e));
++      return FALSE;
++    }
++    return $response->getStatusCode() == 200;
++  }
++
++  /**
++   * Ask the API to purge an object.
++   *
++   * @param string[] $objects
++   *   A non-associative array of Akamai objects to clear.
++   *
++   * @return \GuzzleHttp\Psr7\Response|bool
++   *   Response to purge request, or FALSE on failure.
++   *
++   * @link https://developer.akamai.com/api/purge/ccu/reference.html
++   * @link https://github.com/akamai-open/api-kickstart/blob/master/examples/php/ccu.php#L58
++   */
++  protected function purgeRequest(array $objects) {
++    try {
++      $response = $this->client->request(
++        'POST',
++        $this->apiBaseUrl . 'queues/' . $this->queue,
++        ['json' => $this->createPurgeBody($objects)]
++      );
++      // Note that the response has useful data that we need to record.
++      // Example response body:
++      // @code
++      // {
++      //  "estimatedSeconds": 420,
++      //  "progressUri": "/ccu/v2/purges/57799d8b-10e4-11e4-9088-62ece60caaf0",
++      //  "purgeId": "57799d8b-10e4-11e4-9088-62ece60caaf0",
++      //  "supportId": "17PY1405953363409286-284546144",
++      //  "httpStatus": 201,
++      //  "detail": "Request accepted.",
++      //  "pingAfterSeconds": 420
++      //  }.
++      // @endcode
++      $this->statusStorage->saveResponseStatus($response, $objects);
++      return $response;
++    }
++    catch (RequestException $e) {
++      $this->logger->error($this->formatExceptionMessage($e));
++      return FALSE;
++      // @todo better error handling
++      // Throw $e;.
++    }
++  }
++
++  /**
++   * Get a queue to check its status.
++   *
++   * @param string $queue_name
++   *   The queue name to check. Defaults to 'default'.
++   *
++   * @return array
++   *   Response body of request as associative array.
++   *
++   * @link https://api.ccu.akamai.com/ccu/v2/docs/#section_CheckingQueueLength
++   * @link https://developer.akamai.com/api/purge/ccu/reference.html
++   */
++  public function getQueue($queue_name = 'default') {
++    return Json::decode($this->doGetQueue($queue_name)->getBody());
++  }
++
++  /**
++   * Gets the raw Guzzle result of checking a queue.
++   *
++   * We use this to check connectivity, which is why it is broken out into a
++   * private function.
++   *
++   * @param string $queue_name
++   *   The queue name to check. Defaults to 'default'.
++   *
++   * @return \Psr\Http\Message\ResponseInterface
++   *   The HTTP response.
++   */
++  private function doGetQueue($queue_name = 'default') {
++    return $this->client->get($this->apiBaseUrl . "queues/{$queue_name}");
++  }
++
++  /**
++   * Get the number of items remaining in the purge queue.
++   *
++   * @return int
++   *   A count of the remaining items in the purge queue.
++   */
++  public function getQueueLength() {
++    return $this->getQueue()['queueLength'];
++  }
++
++  /**
++   * Sets the queue name.
++   *
++   * @param string $queue
++   *   The queue name.
++   *
++   * @return $this
++   */
++  public function setQueue($queue) {
++    $this->queue = $queue;
++    return $this;
++  }
++
++  /**
++   * Helper function to validate the actions for purge request.
++   *
++   * @return $this
++   */
++  public function validActions() {
++    return ['remove', 'invalidate'];
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
++    $default_action = key(array_filter($this->configFactory->get('akamai.settings')->get('action_v2')));
++    $form['action'] = [
++      '#type' => 'select',
++      '#title' => $this->t('Clearing Action Type Default'),
++      '#default_value' => in_array($default_action, $this->validActions()) ? $default_action : 'remove',
++      '#options' => [
++        'remove' => $this->t('Remove'),
++        'invalidate' => $this->t('Invalidate'),
++      ],
++      '#description' => $this->t('The default clearing action. The options are <em>remove</em> (which removes the item from the Akamai cache) and <em>invalidate</em> (which leaves the item in the cache, but invalidates it so that the origin will be hit on the next request).'),
++      '#required' => TRUE,
++    ];
++    return $form;
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
++    $actions = array_fill_keys($this->validActions(), FALSE);
++    $actions[$form_state->getValue(['v2', 'action'])] = TRUE;
++
++    $this->configFactory->getEditable('akamai.settings')
++      ->set('action_v2', $actions)
++      ->save();
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public static function getSupportedVersions() {
++    $versions = [];
++    foreach (static::supportedTypes() as $type) {
++      $versions[] = Unicode::strtolower($type);
++    }
++    return $versions;
++  }
++
++}
+diff --git a/src/Plugin/Client/AkamaiClientV3.php b/src/Plugin/Client/AkamaiClientV3.php
+new file mode 100644
+index 0000000..ae196dd
+--- /dev/null
++++ b/src/Plugin/Client/AkamaiClientV3.php
+@@ -0,0 +1,178 @@
++<?php
++
++namespace Drupal\akamai\Plugin\Client;
++
++use Drupal\Core\Form\FormStateInterface;
++use Drupal\akamai\AkamaiClientBase;
++
++/**
++ * Defines the CCUv3 client version for Akamai.
++ *
++ * @AkamaiClient(
++ *   id = "v3",
++ *   title = @Translation("Akamai Client CCUv3")
++ * )
++ */
++class AkamaiClientV3 extends AkamaiClientBase {
++
++  /**
++   * Base url to which API method names are appended.
++   *
++   * @var string
++   */
++  protected $apiBaseUrl = '/ccu/v3/';
++
++  /**
++   * An action to take, either 'delete' or 'invalidate'.
++   *
++   * @var string
++   */
++  protected $action = 'delete';
++
++  /**
++   * Type of purge, either 'url', 'tag' or 'cpcode'.
++   *
++   * @var string
++   */
++  protected $type = 'url';
++
++  /**
++   * Checks that we can connect with the supplied credentials.
++   *
++   * @return bool
++   *   TRUE if authorised, FALSE if not.
++   */
++  public function isAuthorized() {
++    return TRUE;
++  }
++
++  /**
++   * Ask the API to purge an object.
++   *
++   * @param string[] $objects
++   *   A non-associative array of Akamai objects to clear.
++   *
++   * @return \GuzzleHttp\Psr7\Response|bool
++   *   Response to purge request, or FALSE on failure.
++   *
++   * @link https://developer.akamai.com/api/purge/ccu/reference.html
++   * @link https://github.com/akamai-open/api-kickstart/blob/master/examples/php/ccu.php#L58
++   */
++  protected function purgeRequest(array $objects) {
++    try {
++      $response = $this->client->request(
++        'POST',
++        "{$this->apiBaseUrl}{$this->action}/{$this->type}/{$this->domain}",
++        ['json' => $this->createPurgeBody($objects)]
++      );
++      // Note that the response has useful data that we need to record.
++      // Example response body:
++      // @code
++      // {
++      //  "estimatedSeconds": 420,
++      //  "progressUri": "/ccu/v2/purges/57799d8b-10e4-11e4-9088-62ece60caaf0",
++      //  "purgeId": "57799d8b-10e4-11e4-9088-62ece60caaf0",
++      //  "supportId": "17PY1405953363409286-284546144",
++      //  "httpStatus": 201,
++      //  "detail": "Request accepted.",
++      //  "pingAfterSeconds": 420
++      //  }.
++      // @endcode
++      $this->statusStorage->saveResponseStatus($response, $objects);
++      return $response;
++    }
++    catch (RequestException $e) {
++      $this->logger->error($this->formatExceptionMessage($e));
++      return FALSE;
++      // @todo better error handling
++      // Throw $e;.
++    }
++  }
++
++  /**
++   * Create an array to pass to Akamai's purge function.
++   *
++   * @param string[] $urls
++   *   A list of URLs.
++   *
++   * @return array
++   *   An array suitable for sending to the Akamai purge endpoint.
++   */
++  public function createPurgeBody(array $urls) {
++    return [
++      'objects' => $urls,
++      'hostname' => $this->baseUrl,
++    ];
++  }
++
++  /**
++   * Helper function to validate the actions for purge request.
++   *
++   * @return $this
++   */
++  public function validActions() {
++    return ['delete', 'invalidate'];
++  }
++
++  /**
++   * Sets the type of purge.
++   *
++   * @param string $type
++   *   The type of purge, either 'url', 'tag' or 'cpcode'.
++   *
++   * @return $this
++   */
++  public function setType($type) {
++    $valid_types = ['cpcode', 'tag', 'url'];
++    if (in_array($type, $valid_types)) {
++      $this->type = $type;
++    }
++    else {
++      throw new \InvalidArgumentException('Type must be one of: ' . implode(', ', $valid_types));
++    }
++    return $this;
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
++    $default_action = key(array_filter($this->configFactory->get('akamai.settings')->get('action_v3')));
++    $form['action'] = [
++      '#type' => 'select',
++      '#title' => $this->t('Clearing Action Type Default'),
++      '#default_value' => in_array($default_action, $this->validActions()) ? $default_action : 'delete',
++      '#options' => [
++        'delete' => $this->t('Delete'),
++        'invalidate' => $this->t('Invalidate'),
++      ],
++      '#description' => $this->t('The default clearing action. The options are <em>delete</em> (which deletes the item from the Akamai cache) and <em>invalidate</em> (which leaves the item in the cache, but invalidates it so that the origin will be hit on the next request).'),
++      '#required' => TRUE,
++    ];
++    return $form;
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
++    $actions = array_fill_keys($this->validActions(), FALSE);
++    $actions[$form_state->getValue(['v3', 'action'])] = TRUE;
++
++    $this->configFactory->getEditable('akamai.settings')
++      ->set('action_v3', $actions)
++      ->save();
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public static function getSupportedVersions() {
++    $versions = [];
++    foreach (static::supportedTypes() as $type) {
++      $versions[] = Unicode::strtolower($type);
++    }
++    return $versions;
++  }
++
++}
+diff --git a/src/Plugin/Purge/DiagnosticCheck/QueueLengthCheck.php b/src/Plugin/Purge/DiagnosticCheck/QueueLengthCheck.php
+index db873ff..48b5692 100644
+--- a/src/Plugin/Purge/DiagnosticCheck/QueueLengthCheck.php
++++ b/src/Plugin/Purge/DiagnosticCheck/QueueLengthCheck.php
+@@ -65,7 +65,7 @@ class QueueLengthCheck extends DiagnosticCheckBase implements DiagnosticCheckInt
+       $plugin_id,
+       $plugin_definition,
+       $container->get('config.factory'),
+-      \Drupal::service('akamai.edgegridclient')
++      \Drupal::service('akamai.client.factory')->get()
+     );
+   }
+ 
+diff --git a/src/Plugin/Purge/Purger/AkamaiPurger.php b/src/Plugin/Purge/Purger/AkamaiPurger.php
+index e44d986..4e1d759 100644
+--- a/src/Plugin/Purge/Purger/AkamaiPurger.php
++++ b/src/Plugin/Purge/Purger/AkamaiPurger.php
+@@ -5,7 +5,7 @@ namespace Drupal\akamai\Plugin\Purge\Purger;
+ use Drupal\purge\Plugin\Purge\Purger\PurgerBase;
+ use Drupal\Core\Config\ConfigFactoryInterface;
+ use Symfony\Component\DependencyInjection\ContainerInterface;
+-use \Drupal\purge\Plugin\Purge\Invalidation\InvalidationInterface;
++use Drupal\purge\Plugin\Purge\Invalidation\InvalidationInterface;
+ 
+ /**
+  * Akamai Purger.
+@@ -31,7 +31,7 @@ class AkamaiPurger extends PurgerBase {
+   /**
+    * Akamai client config.
+    *
+-   * @var \Drupal\Core\Config;
++   * @var \Drupal\Core\Config
+    */
+   protected $akamaiClientConfig;
+ 
+@@ -61,7 +61,7 @@ class AkamaiPurger extends PurgerBase {
+    */
+   public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config) {
+     parent::__construct($configuration, $plugin_id, $plugin_definition);
+-    $this->client = \Drupal::service('akamai.edgegridclient');
++    $this->client = \Drupal::service('akamai.client.factory')->get();
+     $this->akamaiClientConfig = $config->get('akamai.settings');
+   }
+ 
+diff --git a/src/PurgeStatus.php b/src/PurgeStatus.php
+index ad8c7fa..e05d5de 100644
+--- a/src/PurgeStatus.php
++++ b/src/PurgeStatus.php
+@@ -62,7 +62,7 @@ class PurgeStatus {
+    * @param array $status_requests
+    *   A status response as an array, or a list of responses.
+    */
+-  public function __construct($status_requests) {
++  public function __construct(array $status_requests) {
+     $this->statusRequests = $status_requests;
+ 
+     // Collate all of the URLs from every request.
+diff --git a/src/StatusStorage.php b/src/StatusStorage.php
+index beb6157..963779e 100644
+--- a/src/StatusStorage.php
++++ b/src/StatusStorage.php
+@@ -21,6 +21,8 @@ class StatusStorage {
+ 
+   /**
+    * Config from akamai.settings.
++   *
++   * @var \Drupal\Core\Config
+    */
+   protected $config;
+ 
+@@ -47,12 +49,12 @@ class StatusStorage {
+   /**
+    * Keeps track of response statuses so we can reference them later.
+    *
+-   * @param Response $response
++   * @param \GuzzleHttp\Psr7\Response $response
+    *   Response object, returned from a successful CCU call.
+    * @param string[] $queued_urls
+    *   A list of URLs enqueued in this request.
+    */
+-  public function saveResponseStatus(Response $response, $queued_urls) {
++  public function saveResponseStatus(Response $response, array $queued_urls) {
+     // @todo note that several individual web service calls may be consolidated
+     // into a single request with a single purge id.
+     // We need to add to the existing
+@@ -68,7 +70,7 @@ class StatusStorage {
+    * @param array $status
+    *   A raw status array returned from a client request.
+    */
+-  public function save($status) {
++  public function save(array $status) {
+     $statuses = $this->getResponseStatuses();
+     $status['request_made_at'] = REQUEST_TIME;
+     $statuses[$status['purgeId']][] = $status;
+@@ -83,7 +85,7 @@ class StatusStorage {
+    * @param array $statuses
+    *   An array of status arrays.
+    */
+-  protected function saveStatuses($statuses) {
++  protected function saveStatuses(array $statuses) {
+     \Drupal::state()->set(StatusStorage::PURGE_STATUS_KEY, $statuses);
+   }
+ 
+@@ -103,7 +105,7 @@ class StatusStorage {
+    * @param string $purge_id
+    *   Purge ID to search for.
+    *
+-   * @return array|FALSE
++   * @return array|false
+    *   The status array if found, FALSE if not.
+    */
+   protected function getStatusByPurgeId($purge_id) {
+diff --git a/src/Tests/AkamaiCacheControlFormTest.php b/src/Tests/AkamaiCacheControlFormTest.php
+index d53635a..c1dd43b 100644
+--- a/src/Tests/AkamaiCacheControlFormTest.php
++++ b/src/Tests/AkamaiCacheControlFormTest.php
+@@ -15,11 +15,15 @@ class AkamaiCacheControlFormTest extends WebTestBase {
+ 
+   /**
+    * Node created.
++   *
++   * @var \Drupal\node\NodeInterface
+    */
+   protected $node;
+ 
+   /**
+    * User with admin rights.
++   *
++   * @var \Drupal\user\UserInterface
+    */
+   protected $privilegedUser;
+ 
+@@ -36,10 +40,10 @@ class AkamaiCacheControlFormTest extends WebTestBase {
+   protected function setUp() {
+     parent::setUp();
+     // Create and log in our privileged user.
+-    $this->privilegedUser = $this->drupalCreateUser(array(
++    $this->privilegedUser = $this->drupalCreateUser([
+       'administer akamai',
+       'purge akamai cache',
+-    ));
++    ]);
+     $this->drupalLogin($this->privilegedUser);
+     $this->drupalCreateContentType(['type' => 'article']);
+     $this->node = $this->drupalCreateNode(['type' => 'article']);
+diff --git a/src/Tests/AkamaiConfigFormTest.php b/src/Tests/AkamaiConfigFormTest.php
+index a860e45..4b85b4b 100644
+--- a/src/Tests/AkamaiConfigFormTest.php
++++ b/src/Tests/AkamaiConfigFormTest.php
+@@ -14,6 +14,8 @@ class AkamaiConfigFormTest extends WebTestBase {
+ 
+   /**
+    * User with admin rights.
++   *
++   * @var \Drupal\user\UserInterface
+    */
+   protected $privilegedUser;
+ 
+@@ -30,11 +32,11 @@ class AkamaiConfigFormTest extends WebTestBase {
+   protected function setUp() {
+     parent::setUp();
+     // Create and log in our privileged user.
+-    $this->privilegedUser = $this->drupalCreateUser(array(
++    $this->privilegedUser = $this->drupalCreateUser([
+       'purge akamai cache',
+       'administer akamai',
+       'purge akamai cache',
+-    ));
++    ]);
+     $this->drupalLogin($this->privilegedUser);
+   }
+ 
+@@ -45,7 +47,8 @@ class AkamaiConfigFormTest extends WebTestBase {
+     $edit['basepath'] = 'http://www.example.com';
+     $edit['timeout'] = 20;
+     $edit['domain'] = 'staging';
+-    $edit['action'] = 'invalidate';
++    $edit['ccu_version'] = 'v2';
++    $edit['v2[action]'] = 'invalidate';
+     $edit['devel_mode'] = 1;
+     $edit['mock_endpoint'] = 'https://akamaiopen2purgeccuproduction.docs.apiary.io';
+ 
+diff --git a/src/Tests/AkamaiHomepageTest.php b/src/Tests/AkamaiHomepageTest.php
+index a4e1746..d82572f 100644
+--- a/src/Tests/AkamaiHomepageTest.php
++++ b/src/Tests/AkamaiHomepageTest.php
+@@ -14,17 +14,23 @@ use Drupal\simpletest\WebTestBase;
+ class AkamaiHomepageTest extends WebTestBase {
+ 
+   /**
+-   * User with admin rights.
++   * Node created.
++   *
++   * @var \Drupal\node\NodeInterface
+    */
+   protected $node;
+ 
+   /**
+    * Path to Drupal homepage.
++   *
++   * @var string
+    */
+   protected $homepage;
+ 
+   /**
+    * User with admin rights.
++   *
++   * @var \Drupal\user\UserInterface
+    */
+   protected $privilegedUser;
+ 
+@@ -41,10 +47,10 @@ class AkamaiHomepageTest extends WebTestBase {
+   protected function setUp() {
+     parent::setUp();
+     // Create and log in our privileged user.
+-    $this->privilegedUser = $this->drupalCreateUser(array(
++    $this->privilegedUser = $this->drupalCreateUser([
+       'administer blocks',
+       'purge akamai cache',
+-    ));
++    ]);
+     $this->drupalLogin($this->privilegedUser);
+     $this->drupalCreateContentType(['type' => 'article']);
+     $this->node = $this->drupalCreateNode(['type' => 'article']);
+@@ -63,10 +69,10 @@ class AkamaiHomepageTest extends WebTestBase {
+     $theme_settings = $this->config('system.theme');
+     foreach (['bartik'] as $theme) {
+       // Configure and save the block.
+-      $this->drupalPlaceBlock('akamai_cache_clear_block', array(
++      $this->drupalPlaceBlock('akamai_cache_clear_block', [
+         'region' => 'content',
+         'theme' => $theme,
+-      ));
++      ]);
+       // Set the default theme and ensure the block is placed.
+       $theme_settings->set('default', $theme)->save();
+       // The cache clearing block should pick up the current URL as the clearing
+diff --git a/src/Tests/AkamaiStatusLogTest.php b/src/Tests/AkamaiStatusLogTest.php
+index e52f036..2c3ceba 100644
+--- a/src/Tests/AkamaiStatusLogTest.php
++++ b/src/Tests/AkamaiStatusLogTest.php
+@@ -22,6 +22,8 @@ class AkamaiStatusLogTest extends WebTestBase {
+ 
+   /**
+    * User with admin rights.
++   *
++   * @var \Drupal\user\UserInterface
+    */
+   protected $privilegedUser;
+ 
+@@ -48,9 +50,9 @@ class AkamaiStatusLogTest extends WebTestBase {
+     $this->statusStorage = \Drupal::service('akamai.status_storage');
+ 
+     // Create and log in our privileged user.
+-    $this->privilegedUser = $this->drupalCreateUser(array(
++    $this->privilegedUser = $this->drupalCreateUser([
+       'administer akamai',
+-    ));
++    ]);
+     $this->drupalLogin($this->privilegedUser);
+   }
+ 
+diff --git a/tests/src/Unit/AkamaiAuthenticationTest.php b/tests/src/Unit/AkamaiAuthenticationTest.php
+index e378246..294ba8c 100644
+--- a/tests/src/Unit/AkamaiAuthenticationTest.php
++++ b/tests/src/Unit/AkamaiAuthenticationTest.php
+@@ -94,7 +94,7 @@ class AkamaiAuthenticationTest extends UnitTestCase {
+   protected function getEdgeRcConfig() {
+     return [
+       'storage_method' => 'file',
+-      'edgerc_path' => realpath(__DIR__.'/fixtures/.edgerc'),
++      'edgerc_path' => realpath(__DIR__ . '/fixtures/.edgerc'),
+       'edgerc_section' => 'default',
+     ];
+   }
+diff --git a/tests/src/Unit/AkamaiClientTest.php b/tests/src/Unit/AkamaiClientTest.php
+index 2302156..def645a 100644
+--- a/tests/src/Unit/AkamaiClientTest.php
++++ b/tests/src/Unit/AkamaiClientTest.php
+@@ -2,7 +2,6 @@
+ 
+ namespace Drupal\Tests\akamai\Unit;
+ 
+-use Drupal\akamai\AkamaiClient;
+ use Drupal\Tests\UnitTestCase;
+ use Psr\Log\LoggerInterface;
+ 
+@@ -25,51 +24,55 @@ class AkamaiClientTest extends UnitTestCase {
+   protected function getClient(array $config = []) {
+     // Ensure some sane defaults.
+     $config = $config + [
++      'version' => 'v2',
+       'domain' => [
+         'production' => TRUE,
+         'staging' => FALSE,
+       ],
+-      'action' => [
++      'action_v2' => [
+         'remove' => TRUE,
+         'invalidate' => FALSE,
+       ],
+       'basepath' => 'http://example.com',
+       'mock_endpoint' => 'http://debug.com',
+       'timeout' => 300,
+-
+     ];
+-
+     $logger = $this->prophesize(LoggerInterface::class)->reveal();
+-
+     $status_storage = $this->getMockBuilder('Drupal\akamai\StatusStorage')
+       ->disableOriginalConstructor()
+       ->getMock();
+ 
+-    return new AkamaiClient($this->getConfigFactoryStub(['akamai.settings' => $config]), $logger, $status_storage);
+-  }
++    $edgegridclient = $this->getMockBuilder('Akamai\Open\EdgeGrid\Client')
++      ->disableOriginalConstructor()
++      ->setMethods(NULL)
++      ->getMock();
+ 
+-  /**
+-   * Returns a client set to use devel_mode and a testing endpoint.
+-   */
+-  public function getTestingClient() {
+     // Create stub for response class.
+     $response_stub = $this->getMockBuilder('GuzzleHttp\Psr7\Response')
+       ->disableOriginalConstructor()
++      ->setMethods(['getStatusCode'])
+       ->getMock();
+     $response_stub->method('getStatusCode')
+       ->willReturn(201);
+ 
+     // Create stub for the Akamai Client class.
+-    $akamai_client = $this->getMockBuilder('\Drupal\akamai\AkamaiClient')
+-      ->disableOriginalConstructor()
+-      ->setMethods(['purgeRequest', 'getQueueLength'])
++    $akamai_client = $this->getMockBuilder('Drupal\akamai\Plugin\Client\AkamaiClientV2')
++      ->setConstructorArgs([
++        [],
++        'v2',
++        [],
++        $edgegridclient,
++        $this->getConfigFactoryStub(['akamai.settings' => $config]),
++        $logger,
++        $status_storage,
++      ])
++      ->setMethods(['getQueueLength', 'purgeRequest'])
+       ->getMock();
++    $akamai_client->method('getQueueLength')
++      ->willReturn(4);
+     $akamai_client->method('purgeRequest')
+       ->with(['http://example.com/node/11'])
+       ->willReturn($response_stub);
+-    $akamai_client->method('getQueueLength')
+-      ->willReturn(4);
+-    $akamai_client->setBaseUrl('http://example.com/');
+ 
+     return $akamai_client;
+   }
+@@ -195,7 +198,7 @@ class AkamaiClientTest extends UnitTestCase {
+    */
+   public function testPurgeRequest() {
+     $urls = ['http://example.com/node/11'];
+-    $akamai_client = $this->getTestingClient();
++    $akamai_client = $this->getClient();
+ 
+     $response = $akamai_client->purgeUrl($urls[0]);
+     $this->assertEquals('GuzzleHttp\Psr7\Response', get_parent_class($response));
+@@ -203,11 +206,6 @@ class AkamaiClientTest extends UnitTestCase {
+     $response = $akamai_client->purgeUrls($urls);
+     $this->assertEquals('GuzzleHttp\Psr7\Response', get_parent_class($response));
+     $this->assertEquals('201', $response->getStatusCode());
+-
+-    // Intentionally trigger an exception.
+-    $akamai_client = $this->getClient();
+-    $akamai_client->setQueue('notaqueue');
+-    $this->assertFalse($akamai_client->purgeUrls($urls));
+   }
+ 
+   /**
+@@ -218,7 +216,7 @@ class AkamaiClientTest extends UnitTestCase {
+    * @covers ::doGetQueue
+    */
+   public function testCheckQueue() {
+-    $akamai_client = $this->getTestingClient();
++    $akamai_client = $this->getClient();
+     $this->assertEquals(4, $akamai_client->getQueueLength());
+   }
+ 
+@@ -230,36 +228,66 @@ class AkamaiClientTest extends UnitTestCase {
+    * @covers ::formatExceptionMessage
+    */
+   public function testIsAuthorized() {
+-    // Create stub for response class.
++    // Ensure some sane defaults.
++    $config = [
++      'version' => 'v2',
++      'domain' => [
++        'production' => TRUE,
++        'staging' => FALSE,
++      ],
++      'action_v2' => [
++        'remove' => TRUE,
++        'invalidate' => FALSE,
++      ],
++      'basepath' => 'http://example.com',
++      'mock_endpoint' => 'http://debug.com',
++      'timeout' => 300,
++    ];
++    $logger = $this->prophesize(LoggerInterface::class)->reveal();
++    $status_storage = $this->getMockBuilder('Drupal\akamai\StatusStorage')
++      ->disableOriginalConstructor()
++      ->getMock();
++
++    // Create stub for 200 response class.
+     $response_stub = $this->getMockBuilder('GuzzleHttp\Psr7\Response')
+       ->disableOriginalConstructor()
+       ->getMock();
+     $response_stub->method('getStatusCode')
+       ->willReturn(200);
+-
+-    // Create mock for the Akamai client class.
+-    $akamai_client = $this->getMockBuilder('Drupal\akamai\AkamaiClient')
++    $edgegridclient = $this->getMockBuilder('Akamai\Open\EdgeGrid\Client')
+       ->disableOriginalConstructor()
+       ->setMethods(['get'])
+       ->getMock();
+-
+-    $akamai_client->expects($this->at(0))
++    $edgegridclient->expects($this->at(0))
+       ->method('get')
+       ->with('/ccu/v2/queues/default')
+       ->willReturn($response_stub);
+ 
+-    // Create stub for response class.
++    // Create stub for 404 response class.
+     $response_stub = $this->getMockBuilder('GuzzleHttp\Psr7\Response')
+       ->disableOriginalConstructor()
+       ->getMock();
+     $response_stub->method('getStatusCode')
+       ->willReturn(404);
+-
+-    $akamai_client->expects($this->at(1))
++    $edgegridclient->expects($this->at(1))
+       ->method('get')
+       ->with($this->logicalNot($this->equalTo('/ccu/v2/queues/default')))
+       ->willReturn($response_stub);
+ 
++    // Create stub for the Akamai Client class.
++    $akamai_client = $this->getMockBuilder('Drupal\akamai\Plugin\Client\AkamaiClientV2')
++      ->setConstructorArgs([
++        [],
++        'v2',
++        [],
++        $edgegridclient,
++        $this->getConfigFactoryStub(['akamai.settings' => $config]),
++        $logger,
++        $status_storage,
++      ])
++      ->setMethods(NULL)
++      ->getMock();
++
+     // Test isAuthorized.
+     $this->assertTrue($akamai_client->isAuthorized());
+ 
+@@ -274,6 +302,26 @@ class AkamaiClientTest extends UnitTestCase {
+    * @covers ::getPurgeStatus
+    */
+   public function testGetPurgeStatus() {
++    // Ensure some sane defaults.
++    $config = [
++      'version' => 'v2',
++      'domain' => [
++        'production' => TRUE,
++        'staging' => FALSE,
++      ],
++      'action_v2' => [
++        'remove' => TRUE,
++        'invalidate' => FALSE,
++      ],
++      'basepath' => 'http://example.com',
++      'mock_endpoint' => 'http://debug.com',
++      'timeout' => 300,
++    ];
++    $logger = $this->prophesize(LoggerInterface::class)->reveal();
++    $status_storage = $this->getMockBuilder('Drupal\akamai\StatusStorage')
++      ->disableOriginalConstructor()
++      ->getMock();
++
+     // Create stub for response class.
+     $response_stub = $this->getMockBuilder('GuzzleHttp\Psr7\Response')
+       ->disableOriginalConstructor()
+@@ -282,22 +330,35 @@ class AkamaiClientTest extends UnitTestCase {
+       ->willReturn(200);
+ 
+     // Create mock for the Akamai client class.
+-    $akamai_client = $this->getMockBuilder('Drupal\akamai\AkamaiClient')
++    $edgegridclient = $this->getMockBuilder('Akamai\Open\EdgeGrid\Client')
+       ->disableOriginalConstructor()
+       ->setMethods(['request'])
+       ->getMock();
+-    $akamai_client->expects($this->at(0))
++    $edgegridclient->expects($this->at(0))
+       ->method('request')
+-      ->with('GET', $this->callback(function($payload) {
++      ->with('GET', $this->callback(function ($payload) {
+         return $payload === '/ccu/v2/purges/dummy_id';
+       }))
+       ->willReturn($response_stub);
+-    $akamai_client->expects($this->at(1))
++    $edgegridclient->expects($this->at(1))
+       ->method('request')
+-      ->with($this->equalTo('GET'), $this->callback(function($payload) {
++      ->with($this->equalTo('GET'), $this->callback(function ($payload) {
+         return $payload !== '/ccu/v2/purges/dummy_id';
+       }))
+       ->willReturn(FALSE);
++    // Create stub for the Akamai Client class.
++    $akamai_client = $this->getMockBuilder('Drupal\akamai\Plugin\Client\AkamaiClientV2')
++      ->setConstructorArgs([
++        [],
++        'v2',
++        [],
++        $edgegridclient,
++        $this->getConfigFactoryStub(['akamai.settings' => $config]),
++        $logger,
++        $status_storage,
++      ])
++      ->setMethods(NULL)
++      ->getMock();
+ 
+     // Test purge status/ get status code.
+     $response = $akamai_client->getPurgeStatus('dummy_id');
+-- 
+2.10.1 (Apple Git-78)
+

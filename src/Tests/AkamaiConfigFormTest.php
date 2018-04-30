@@ -14,6 +14,8 @@ class AkamaiConfigFormTest extends WebTestBase {
 
   /**
    * User with admin rights.
+   *
+   * @var \Drupal\user\UserInterface
    */
   protected $privilegedUser;
 
@@ -30,11 +32,11 @@ class AkamaiConfigFormTest extends WebTestBase {
   protected function setUp() {
     parent::setUp();
     // Create and log in our privileged user.
-    $this->privilegedUser = $this->drupalCreateUser(array(
+    $this->privilegedUser = $this->drupalCreateUser([
       'purge akamai cache',
       'administer akamai',
       'purge akamai cache',
-    ));
+    ]);
     $this->drupalLogin($this->privilegedUser);
   }
 
@@ -45,7 +47,8 @@ class AkamaiConfigFormTest extends WebTestBase {
     $edit['basepath'] = 'http://www.example.com';
     $edit['timeout'] = 20;
     $edit['domain'] = 'staging';
-    $edit['action'] = 'invalidate';
+    $edit['ccu_version'] = 'v2';
+    $edit['v2[action]'] = 'invalidate';
     $edit['devel_mode'] = 1;
     $edit['mock_endpoint'] = 'https://akamaiopen2purgeccuproduction.docs.apiary.io';
 

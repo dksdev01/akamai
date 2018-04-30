@@ -15,11 +15,15 @@ class AkamaiCacheControlFormTest extends WebTestBase {
 
   /**
    * Node created.
+   *
+   * @var \Drupal\node\NodeInterface
    */
   protected $node;
 
   /**
    * User with admin rights.
+   *
+   * @var \Drupal\user\UserInterface
    */
   protected $privilegedUser;
 
@@ -36,10 +40,10 @@ class AkamaiCacheControlFormTest extends WebTestBase {
   protected function setUp() {
     parent::setUp();
     // Create and log in our privileged user.
-    $this->privilegedUser = $this->drupalCreateUser(array(
+    $this->privilegedUser = $this->drupalCreateUser([
       'administer akamai',
       'purge akamai cache',
-    ));
+    ]);
     $this->drupalLogin($this->privilegedUser);
     $this->drupalCreateContentType(['type' => 'article']);
     $this->node = $this->drupalCreateNode(['type' => 'article']);

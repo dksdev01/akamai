@@ -2,7 +2,8 @@
 
 namespace Drupal\akamai\Form;
 
-use Drupal\akamai\AkamaiClient;
+use Drupal\akamai\AkamaiClientFactory;
+use Drupal\Component\Utility\Unicode;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -17,25 +18,25 @@ class CacheControlForm extends FormBase {
   /**
    * The akamai client.
    *
-   * @var \Drupal\akamai\AkamaiClient
+   * @var \Drupal\akamai\AkamaiClientInterface
    */
   protected $akamaiClient;
 
   /**
    * A path alias manager.
    *
-   * @var \Drupal\Core\Path\AliasManager.
+   * @var \Drupal\Core\Path\AliasManager
    */
   protected $aliasManager;
 
   /**
    * Constructs a new CacheControlForm.
    *
-   * @param \Drupal\akamai\AkamaiClient $akamai_client
-   *   The akamai client.
+   * @param \Drupal\akamai\AkamaiClientFactory $factory
+   *   The akamai client factory.
    */
-  public function __construct(AkamaiClient $akamai_client) {
-    $this->akamaiClient = $akamai_client;
+  public function __construct(AkamaiClientFactory $factory) {
+    $this->akamaiClient = $factory->get();
   }
 
   /**
@@ -43,7 +44,7 @@ class CacheControlForm extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('akamai.edgegridclient')
+      $container->get('akamai.client.factory')
     );
   }
 
@@ -59,7 +60,7 @@ class CacheControlForm extends FormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('akamai.settings');
-    $form = array();
+    $version = $this->akamaiClient->getPluginId();
 
     // Disable the form and show a message if we are not authenticated.
     $form_disabled = FALSE;
@@ -81,54 +82,54 @@ class CacheControlForm extends FormBase {
       ]
     );
 
-    $form['paths'] = array(
+    $form['paths'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Paths/URLs/CPCodes'),
       '#description' => $paths_description,
       '#required' => TRUE,
       '#default_value' => $form_state->get('paths'),
-    );
+    ];
 
     $domain_override_default = $form_state->get('domain_override') ?: key(array_filter($config->get('domain')));
-    $form['domain_override'] = array(
+    $form['domain_override'] = [
       '#type' => 'select',
       '#title' => $this->t('Domain'),
-      '#options' => array(
+      '#options' => [
         'production' => $this->t('Production'),
         'staging' => $this->t('Staging'),
-      ),
+      ],
       '#default_value' => $domain_override_default,
       '#description' => $this->t('The Akamai domain to use for cache clearing.  Defaults to the Domain setting from the settings page.'),
-    );
+    ];
 
-    $action_default = $form_state->get('action') ?: key(array_filter($config->get('action')));
-    $form['action'] = array(
+    $action_default = $form_state->get('action') ?: $config->get("action_{$version}");
+    $actions = $this->akamaiClient->validActions();
+    $form['action'] = [
       '#type' => 'radios',
       '#title' => $this->t('Clearing Action Type'),
-      '#options' => array(
-        'remove' => $this->t('Remove'),
-        'invalidate' => $this->t('Invalidate'),
-      ),
-      '#default_value' => $action_default,
+      '#options' => array_combine($actions, array_map(function ($action) {
+        return Unicode::ucwords($action);
+      }, $actions)),
+      '#default_value' => key(array_filter($action_default)),
       '#description' => $this->t('<b>Remove:</b> Purge the content from Akamai edge server caches. The next time the edge server receives a request for the content, it will retrieve the current version from the origin server. If it cannot retrieve a current version, it will follow instructions in your edge server configuration.<br/><br/><b>Invalidate:</b> Mark the cached content as invalid. The next time the Akamai edge server receives a request for the content, it will send an HTTP conditional get (If-Modified-Since) request to the origin. If the content has changed, the origin server will return a full fresh copy; otherwise, the origin normally will respond that the content has not changed, and Akamai can serve the already-cached content.<br/><br/><b>Note that <em>Remove</em> can increase the load on the origin more than <em>Invalidate</em>.</b> With <em>Invalidate</em>, objects are not removed from cache and full objects are not retrieved from the origin unless they are newer than the cached versions.'),
-    );
+    ];
 
-    $form['method'] = array(
+    $form['method'] = [
       '#type' => 'radios',
       '#title' => $this->t('Purge Method'),
-      '#options' => array(
+      '#options' => [
         'url'    => $this->t('URL'),
         'cpcode' => $this->t('Content Provider Code'),
-      ),
+      ],
       '#default_value' => $form_state->get('method') ?: 'url',
       '#description' => $this->t('The Akamai API method to use for cache purge requests.'),
-    );
+    ];
 
-    $form['submit'] = array(
+    $form['submit'] = [
       '#type' => 'submit',
       '#value' => $this->t('Start Refreshing Content'),
       '#disabled' => $form_disabled,
-    );
+    ];
 
     return $form;
   }
@@ -193,7 +194,7 @@ class CacheControlForm extends FormBase {
     $action = $form_state->getValue('action');
     $method = $form_state->getValue('method');
     $objects = explode(PHP_EOL, $form_state->getValue('paths'));
-    $urls_to_clear = array();
+    $urls_to_clear = [];
 
     if ($method == 'url') {
       foreach ($objects as $path) {
@@ -230,7 +231,7 @@ class CacheControlForm extends FormBase {
    * Shows a message to the user if not authenticated to the Akamai API.
    */
   protected function showAuthenticationWarning() {
-    $message = $this->t('You are not authenticated to Akamai CCU v2. Until you authenticate, you will not be able to clear URLs from the Akamai cache. <a href=:url">Update settings now</a>.', [':url' => Url::fromRoute('akamai.settings')]);
+    $message = $this->t('You are not authenticated to Akamai CCU v2. Until you authenticate, you will not be able to clear URLs from the Akamai cache. <a href=:url">Update settings now</a>.', [':url' => Url::fromRoute('akamai.settings')->toString()]);
     drupal_set_message($message, 'warning');
   }
 

@@ -2,27 +2,37 @@
 
 namespace Drupal\akamai;
 
-use Drupal\Component\Utility\UrlHelper;
 use Drupal\Component\Serialization\Json;
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Akamai\Open\EdgeGrid\Client;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Plugin\PluginBase;
+use Akamai\Open\EdgeGrid\Client as EdgeGridClient;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\MessageFormatter;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\HandlerStack;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Connects to the Akamai EdgeGrid.
  */
-class AkamaiClient extends Client {
+abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterface {
 
   /**
-   * The settings configuration.
+   * The config factory.
    *
-   * @var \Drupal\Core\Config\Config
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
-  protected $drupalConfig;
+  protected $configFactory;
+
+  /**
+   * An instance of an OPEN EdgeGrid Client.
+   *
+   * @var \Akamai\Open\EdgeGrid\Client
+   */
+  protected $client;
 
   /**
    * A config suitable for use with Akamai\Open\EdgeGrid\Client.
@@ -74,13 +84,6 @@ class AkamaiClient extends Client {
   protected $type = 'arl';
 
   /**
-   * The queue name to clear.
-   *
-   * @var string
-   */
-  protected $queue = 'default';
-
-  /**
    * The domain for which Akamai is managing cache.
    *
    * @var string
@@ -97,6 +100,14 @@ class AkamaiClient extends Client {
   /**
    * AkamaiClient constructor.
    *
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   * @param string $plugin_id
+   *   The plugin_id for the plugin instance.
+   * @param array $plugin_definition
+   *   The plugin implementation definition.
+   * @param \Akamai\Open\EdgeGrid\Client $client
+   *   Akamai EdgeGrid client.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
    * @param \Psr\Log\LoggerInterface $logger
@@ -104,21 +115,23 @@ class AkamaiClient extends Client {
    * @param \Drupal\akamai\StatusStorage $status_storage
    *   A status logger for tracking purge responses.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, LoggerInterface $logger, StatusStorage $status_storage) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, EdgeGridClient $client, ConfigFactoryInterface $config_factory, LoggerInterface $logger, StatusStorage $status_storage) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->logger = $logger;
-    $this->drupalConfig = $config_factory->get('akamai.settings');
+    $this->configFactory = $config_factory;
     $this->akamaiClientConfig = $this->createClientConfig();
     $this->statusStorage = $status_storage;
+    $this->client = $client;
 
     $this
       // Set action to take based on configuration.
-      ->setAction(key(array_filter($this->drupalConfig->get('action'))))
+      ->setAction(key(array_filter($this->configFactory->get('akamai.settings')->get("action_{$plugin_id}"))))
       // Set domain (staging or production).
-      ->setDomain(key(array_filter($this->drupalConfig->get('domain'))))
+      ->setDomain(key(array_filter($this->configFactory->get('akamai.settings')->get('domain'))))
       // Set base url for the cache (eg, example.com).
-      ->setBaseUrl($this->drupalConfig->get('basepath'))
+      ->setBaseUrl($this->configFactory->get('akamai.settings')->get('basepath'))
       // Sets logging.
-      ->setLogRequests($this->drupalConfig->get('log_requests'));
+      ->setLogRequests($this->configFactory->get('akamai.settings')->get('log_requests'));
 
     // Create an authentication object so we can sign requests.
     $auth = AkamaiAuthentication::create($config_factory);
@@ -127,8 +140,28 @@ class AkamaiClient extends Client {
       $this->enableRequestLogging();
     }
 
-    parent::__construct($this->akamaiClientConfig, $auth);
+    $this->client->__construct($this->akamaiClientConfig, $auth);
   }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('akamai.edgegridclient'),
+      $container->get('config.factory'),
+      $container->get('logger.channel.akamai'),
+      $container->get('akamai.status_storage')
+    );
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {}
 
   /**
    * Creates a config array for consumption by Akamai\Open\EdgeGrid\Client.
@@ -141,14 +174,14 @@ class AkamaiClient extends Client {
   public function createClientConfig() {
     $client_config = [];
     // If we are in devel mode, use the mocked endpoint.
-    if ($this->drupalConfig->get('devel_mode') == TRUE) {
-      $client_config['base_uri'] = $this->drupalConfig->get('mock_endpoint');
+    if ($this->configFactory->get('akamai.settings')->get('devel_mode') == TRUE) {
+      $client_config['base_uri'] = $this->configFactory->get('akamai.settings')->get('mock_endpoint');
     }
     else {
-      $client_config['base_uri'] = $this->drupalConfig->get('rest_api_url');
+      $client_config['base_uri'] = $this->configFactory->get('akamai.settings')->get('rest_api_url');
     }
 
-    $client_config['timeout'] = $this->drupalConfig->get('timeout');
+    $client_config['timeout'] = $this->configFactory->get('akamai.settings')->get('timeout');
 
     return $client_config;
   }
@@ -179,24 +212,6 @@ class AkamaiClient extends Client {
   public function setLogRequests($log_requests) {
     $this->logRequests = (bool) $log_requests;
     return $this;
-  }
-
-  /**
-   * Checks that we can connect with the supplied credentials.
-   *
-   * @return bool
-   *   TRUE if authorised, FALSE if not.
-   */
-  public function isAuthorized() {
-    try {
-      $response = $this->doGetQueue();
-    }
-    catch (RequestException $e) {
-      // @todo better handling
-      $this->logger->error($this->formatExceptionMessage($e));
-      return FALSE;
-    }
-    return $response->getStatusCode() == 200;
   }
 
   /**
@@ -255,49 +270,6 @@ class AkamaiClient extends Client {
    */
   public function purgeCpCodes(array $cpcodes) {
     return $this->purgeRequest($cpcodes);
-  }
-
-  /**
-   * Ask the API to purge an object.
-   *
-   * @param string[] $objects
-   *   A non-associative array of Akamai objects to clear.
-   *
-   * @return \GuzzleHttp\Psr7\Response|bool
-   *   Response to purge request, or FALSE on failure.
-   *
-   * @link https://developer.akamai.com/api/purge/ccu/reference.html
-   * @link https://github.com/akamai-open/api-kickstart/blob/master/examples/php/ccu.php#L58
-   */
-  protected function purgeRequest(array $objects) {
-    try {
-      $response = $this->request(
-        'POST',
-        $this->apiBaseUrl . 'queues/' . $this->queue,
-        ['json' => $this->createPurgeBody($objects)]
-      );
-      // Note that the response has useful data that we need to record.
-      // Example response body:
-      // @code
-      // {
-      //  "estimatedSeconds": 420,
-      //  "progressUri": "/ccu/v2/purges/57799d8b-10e4-11e4-9088-62ece60caaf0",
-      //  "purgeId": "57799d8b-10e4-11e4-9088-62ece60caaf0",
-      //  "supportId": "17PY1405953363409286-284546144",
-      //  "httpStatus": 201,
-      //  "detail": "Request accepted.",
-      //  "pingAfterSeconds": 420
-      //  }.
-      // @endcode
-      $this->statusStorage->saveResponseStatus($response, $objects);
-      return $response;
-    }
-    catch (RequestException $e) {
-      $this->logger->error($this->formatExceptionMessage($e));
-      return FALSE;
-      // @todo better error handling
-      // Throw $e;.
-    }
   }
 
   /**
@@ -371,48 +343,6 @@ class AkamaiClient extends Client {
   }
 
   /**
-   * Get a queue to check its status.
-   *
-   * @param string $queue_name
-   *   The queue name to check. Defaults to 'default'.
-   *
-   * @return array
-   *   Response body of request as associative array.
-   *
-   * @link https://api.ccu.akamai.com/ccu/v2/docs/#section_CheckingQueueLength
-   * @link https://developer.akamai.com/api/purge/ccu/reference.html
-   */
-  public function getQueue($queue_name = 'default') {
-    return Json::decode($this->doGetQueue($queue_name)->getBody());
-  }
-
-  /**
-   * Gets the raw Guzzle result of checking a queue.
-   *
-   * We use this to check connectivity, which is why it is broken out into a
-   * private function.
-   *
-   * @param string $queue_name
-   *   The queue name to check. Defaults to 'default'.
-   *
-   * @return \Psr\Http\Message\ResponseInterface
-   *   The HTTP response.
-   */
-  private function doGetQueue($queue_name = 'default') {
-    return $this->get($this->apiBaseUrl . "queues/{$queue_name}");
-  }
-
-  /**
-   * Get the number of items remaining in the purge queue.
-   *
-   * @return int
-   *   A count of the remaining items in the purge queue.
-   */
-  public function getQueueLength() {
-    return $this->getQueue()['queueLength'];
-  }
-
-  /**
    * Returns the status of a previous purge request.
    *
    * @param string $purge_id
@@ -423,7 +353,7 @@ class AkamaiClient extends Client {
    */
   public function getPurgeStatus($purge_id) {
     try {
-      $response = $this->request(
+      $response = $this->client->request(
         'GET',
         $this->apiBaseUrl . 'purges/' . $purge_id
       );
@@ -434,19 +364,6 @@ class AkamaiClient extends Client {
       $this->logger->error($this->formatExceptionMessage($e));
       return FALSE;
     }
-  }
-
-  /**
-   * Sets the queue name.
-   *
-   * @param string $queue
-   *   The queue name.
-   *
-   * @return $this
-   */
-  public function setQueue($queue) {
-    $this->queue = $queue;
-    return $this;
   }
 
   /**
@@ -477,7 +394,7 @@ class AkamaiClient extends Client {
    * @return $this
    */
   public function setAction($action) {
-    $valid_actions = ['remove', 'invalidate'];
+    $valid_actions = $this->validActions();
     if (in_array($action, $valid_actions)) {
       $this->action = $action;
     }
@@ -560,6 +477,15 @@ class AkamaiClient extends Client {
     }
 
     return $message;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function bodyIsBelowLimit(array $paths = []) {
+    $body = $this->createPurgeBody($paths);
+    $bytes = mb_strlen($body, '8bit');
+    return $bytes < self::MAX_BODY_SIZE;
   }
 
 }

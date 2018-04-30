@@ -21,23 +21,21 @@ class ClearUrlForm extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    $form = array();
-
     $current_uri = $this->getRequest()->getRequestUri();
 
-    $form['path'] = array(
+    $form['path'] = [
       '#type'  => 'hidden',
       '#value' => $current_uri,
-    );
-    $form['message'] = array(
+    ];
+    $form['message'] = [
       '#type'  => 'item',
       '#title' => $this->t('Refresh URL'),
       '#markup' => $current_uri,
-    );
-    $form['submit'] = array(
+    ];
+    $form['submit'] = [
       '#type'  => 'submit',
       '#value' => $this->t('Refresh Akamai Cache'),
-    );
+    ];
 
     return $form;
   }
@@ -47,8 +45,8 @@ class ClearUrlForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $uri_to_purge = $form_state->getValues()['path'];
-    \Drupal::service('akamai.edgegridclient')->purgeUrl($uri_to_purge);
-    drupal_set_message($this->t('Asked Akamai to purge :uri', array(':uri' => $uri_to_purge)));
+    \Drupal::service('akamai.client.factory')->get()->purgeUrl($uri_to_purge);
+    drupal_set_message($this->t('Asked Akamai to purge :uri', [':uri' => $uri_to_purge]));
   }
 
 }

@@ -61,9 +61,9 @@ class CacheClearBlock extends BlockBase implements ContainerFactoryPluginInterfa
    */
   public function build() {
     $form = $this->formBuilder->getForm('Drupal\akamai\Form\ClearUrlForm');
-    return array(
+    return [
       'cache_clear_form' => $form,
-    );
+    ];
   }
 
   /**

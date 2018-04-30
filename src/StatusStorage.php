@@ -21,6 +21,8 @@ class StatusStorage {
 
   /**
    * Config from akamai.settings.
+   *
+   * @var \Drupal\Core\Config
    */
   protected $config;
 
@@ -47,12 +49,12 @@ class StatusStorage {
   /**
    * Keeps track of response statuses so we can reference them later.
    *
-   * @param Response $response
+   * @param \GuzzleHttp\Psr7\Response $response
    *   Response object, returned from a successful CCU call.
    * @param string[] $queued_urls
    *   A list of URLs enqueued in this request.
    */
-  public function saveResponseStatus(Response $response, $queued_urls) {
+  public function saveResponseStatus(Response $response, array $queued_urls) {
     // @todo note that several individual web service calls may be consolidated
     // into a single request with a single purge id.
     // We need to add to the existing
@@ -68,7 +70,7 @@ class StatusStorage {
    * @param array $status
    *   A raw status array returned from a client request.
    */
-  public function save($status) {
+  public function save(array $status) {
     $statuses = $this->getResponseStatuses();
     $status['request_made_at'] = REQUEST_TIME;
     $statuses[$status['purgeId']][] = $status;
@@ -83,7 +85,7 @@ class StatusStorage {
    * @param array $statuses
    *   An array of status arrays.
    */
-  protected function saveStatuses($statuses) {
+  protected function saveStatuses(array $statuses) {
     \Drupal::state()->set(StatusStorage::PURGE_STATUS_KEY, $statuses);
   }
 
@@ -103,7 +105,7 @@ class StatusStorage {
    * @param string $purge_id
    *   Purge ID to search for.
    *
-   * @return array|FALSE
+   * @return array|false
    *   The status array if found, FALSE if not.
    */
   protected function getStatusByPurgeId($purge_id) {

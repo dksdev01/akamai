@@ -94,7 +94,7 @@ class AkamaiAuthenticationTest extends UnitTestCase {
   protected function getEdgeRcConfig() {
     return [
       'storage_method' => 'file',
-      'edgerc_path' => realpath(__DIR__.'/fixtures/.edgerc'),
+      'edgerc_path' => realpath(__DIR__ . '/fixtures/.edgerc'),
       'edgerc_section' => 'default',
     ];
   }

@@ -44,6 +44,8 @@ class StatusLogController extends ControllerBase {
    *
    * @param \Drupal\akamai\StatusStorage $status_storage
    *   A status storage service, so we can reference statuses.
+   * @param \Drupal\Core\Datetime\DateFormatter $date_formatter
+   *   A date formatter service.
    */
   public function __construct(StatusStorage $status_storage, DateFormatter $date_formatter) {
     $this->statusStorage = $status_storage;
@@ -57,7 +59,7 @@ class StatusLogController extends ControllerBase {
    *   A table render array of all requests statuses.
    */
   public function listAction() {
-    $client = \Drupal::service('akamai.edgegridclient');
+    $client = \Drupal::service('akamai.client.factory')->get();
     $length = $client->getQueueLength();
 
     $statuses = $this->statusStorage->getResponseStatuses();
@@ -95,7 +97,7 @@ class StatusLogController extends ControllerBase {
   /**
    * Creates a table row from a status.
    *
-   * @param PurgeStatus $status
+   * @param \Drupal\akamai\PurgeStatus $status
    *   A status as an array.
    *
    * @return array
@@ -144,7 +146,7 @@ class StatusLogController extends ControllerBase {
     $build[]['#markup'] = '<p>' . $this->l($this->t('Back to list'), Url::fromRoute('akamai.statuslog_list')) . '</p>';
 
     // @todo inject
-    $client = \Drupal::service('akamai.edgegridclient');
+    $client = \Drupal::service('akamai.client.factory')->get();
     // Get a new status update.
     $status = Json::decode($client->getPurgeStatus($purge_id)->getBody());
     // Save it in storage.
@@ -169,7 +171,7 @@ class StatusLogController extends ControllerBase {
   /**
    * Builds a table render array for an individual purge request.
    *
-   * @param PurgeStatus $status
+   * @param \Drupal\akamai\PurgeStatus $status
    *   The purge status.
    *
    * @return array

@@ -2,7 +2,6 @@
 
 namespace Drupal\Tests\akamai\Unit;
 
-use Drupal\akamai\AkamaiClient;
 use Drupal\Tests\UnitTestCase;
 use Psr\Log\LoggerInterface;
 
@@ -25,51 +24,55 @@ class AkamaiClientTest extends UnitTestCase {
   protected function getClient(array $config = []) {
     // Ensure some sane defaults.
     $config = $config + [
+      'version' => 'v2',
       'domain' => [
         'production' => TRUE,
         'staging' => FALSE,
       ],
-      'action' => [
+      'action_v2' => [
         'remove' => TRUE,
         'invalidate' => FALSE,
       ],
       'basepath' => 'http://example.com',
       'mock_endpoint' => 'http://debug.com',
       'timeout' => 300,
-
     ];
-
     $logger = $this->prophesize(LoggerInterface::class)->reveal();
-
     $status_storage = $this->getMockBuilder('Drupal\akamai\StatusStorage')
       ->disableOriginalConstructor()
       ->getMock();
 
-    return new AkamaiClient($this->getConfigFactoryStub(['akamai.settings' => $config]), $logger, $status_storage);
-  }
+    $edgegridclient = $this->getMockBuilder('Akamai\Open\EdgeGrid\Client')
+      ->disableOriginalConstructor()
+      ->setMethods(NULL)
+      ->getMock();
 
-  /**
-   * Returns a client set to use devel_mode and a testing endpoint.
-   */
-  public function getTestingClient() {
     // Create stub for response class.
     $response_stub = $this->getMockBuilder('GuzzleHttp\Psr7\Response')
       ->disableOriginalConstructor()
+      ->setMethods(['getStatusCode'])
       ->getMock();
     $response_stub->method('getStatusCode')
       ->willReturn(201);
 
     // Create stub for the Akamai Client class.
-    $akamai_client = $this->getMockBuilder('\Drupal\akamai\AkamaiClient')
-      ->disableOriginalConstructor()
-      ->setMethods(['purgeRequest', 'getQueueLength'])
+    $akamai_client = $this->getMockBuilder('Drupal\akamai\Plugin\Client\AkamaiClientV2')
+      ->setConstructorArgs([
+        [],
+        'v2',
+        [],
+        $edgegridclient,
+        $this->getConfigFactoryStub(['akamai.settings' => $config]),
+        $logger,
+        $status_storage,
+      ])
+      ->setMethods(['getQueueLength', 'purgeRequest'])
       ->getMock();
+    $akamai_client->method('getQueueLength')
+      ->willReturn(4);
     $akamai_client->method('purgeRequest')
       ->with(['http://example.com/node/11'])
       ->willReturn($response_stub);
-    $akamai_client->method('getQueueLength')
-      ->willReturn(4);
-    $akamai_client->setBaseUrl('http://example.com/');
 
     return $akamai_client;
   }
@@ -195,7 +198,7 @@ class AkamaiClientTest extends UnitTestCase {
    */
   public function testPurgeRequest() {
     $urls = ['http://example.com/node/11'];
-    $akamai_client = $this->getTestingClient();
+    $akamai_client = $this->getClient();
 
     $response = $akamai_client->purgeUrl($urls[0]);
     $this->assertEquals('GuzzleHttp\Psr7\Response', get_parent_class($response));
@@ -203,11 +206,6 @@ class AkamaiClientTest extends UnitTestCase {
     $response = $akamai_client->purgeUrls($urls);
     $this->assertEquals('GuzzleHttp\Psr7\Response', get_parent_class($response));
     $this->assertEquals('201', $response->getStatusCode());
-
-    // Intentionally trigger an exception.
-    $akamai_client = $this->getClient();
-    $akamai_client->setQueue('notaqueue');
-    $this->assertFalse($akamai_client->purgeUrls($urls));
   }
 
   /**
@@ -218,7 +216,7 @@ class AkamaiClientTest extends UnitTestCase {
    * @covers ::doGetQueue
    */
   public function testCheckQueue() {
-    $akamai_client = $this->getTestingClient();
+    $akamai_client = $this->getClient();
     $this->assertEquals(4, $akamai_client->getQueueLength());
   }
 
@@ -230,35 +228,65 @@ class AkamaiClientTest extends UnitTestCase {
    * @covers ::formatExceptionMessage
    */
   public function testIsAuthorized() {
-    // Create stub for response class.
+    // Ensure some sane defaults.
+    $config = [
+      'version' => 'v2',
+      'domain' => [
+        'production' => TRUE,
+        'staging' => FALSE,
+      ],
+      'action_v2' => [
+        'remove' => TRUE,
+        'invalidate' => FALSE,
+      ],
+      'basepath' => 'http://example.com',
+      'mock_endpoint' => 'http://debug.com',
+      'timeout' => 300,
+    ];
+    $logger = $this->prophesize(LoggerInterface::class)->reveal();
+    $status_storage = $this->getMockBuilder('Drupal\akamai\StatusStorage')
+      ->disableOriginalConstructor()
+      ->getMock();
+
+    // Create stub for 200 response class.
     $response_stub = $this->getMockBuilder('GuzzleHttp\Psr7\Response')
       ->disableOriginalConstructor()
       ->getMock();
     $response_stub->method('getStatusCode')
       ->willReturn(200);
-
-    // Create mock for the Akamai client class.
-    $akamai_client = $this->getMockBuilder('Drupal\akamai\AkamaiClient')
+    $edgegridclient = $this->getMockBuilder('Akamai\Open\EdgeGrid\Client')
       ->disableOriginalConstructor()
       ->setMethods(['get'])
       ->getMock();
-
-    $akamai_client->expects($this->at(0))
+    $edgegridclient->expects($this->at(0))
       ->method('get')
       ->with('/ccu/v2/queues/default')
       ->willReturn($response_stub);
 
-    // Create stub for response class.
+    // Create stub for 404 response class.
     $response_stub = $this->getMockBuilder('GuzzleHttp\Psr7\Response')
       ->disableOriginalConstructor()
       ->getMock();
     $response_stub->method('getStatusCode')
       ->willReturn(404);
-
-    $akamai_client->expects($this->at(1))
+    $edgegridclient->expects($this->at(1))
       ->method('get')
       ->with($this->logicalNot($this->equalTo('/ccu/v2/queues/default')))
       ->willReturn($response_stub);
+
+    // Create stub for the Akamai Client class.
+    $akamai_client = $this->getMockBuilder('Drupal\akamai\Plugin\Client\AkamaiClientV2')
+      ->setConstructorArgs([
+        [],
+        'v2',
+        [],
+        $edgegridclient,
+        $this->getConfigFactoryStub(['akamai.settings' => $config]),
+        $logger,
+        $status_storage,
+      ])
+      ->setMethods(NULL)
+      ->getMock();
 
     // Test isAuthorized.
     $this->assertTrue($akamai_client->isAuthorized());
@@ -274,6 +302,26 @@ class AkamaiClientTest extends UnitTestCase {
    * @covers ::getPurgeStatus
    */
   public function testGetPurgeStatus() {
+    // Ensure some sane defaults.
+    $config = [
+      'version' => 'v2',
+      'domain' => [
+        'production' => TRUE,
+        'staging' => FALSE,
+      ],
+      'action_v2' => [
+        'remove' => TRUE,
+        'invalidate' => FALSE,
+      ],
+      'basepath' => 'http://example.com',
+      'mock_endpoint' => 'http://debug.com',
+      'timeout' => 300,
+    ];
+    $logger = $this->prophesize(LoggerInterface::class)->reveal();
+    $status_storage = $this->getMockBuilder('Drupal\akamai\StatusStorage')
+      ->disableOriginalConstructor()
+      ->getMock();
+
     // Create stub for response class.
     $response_stub = $this->getMockBuilder('GuzzleHttp\Psr7\Response')
       ->disableOriginalConstructor()
@@ -282,22 +330,35 @@ class AkamaiClientTest extends UnitTestCase {
       ->willReturn(200);
 
     // Create mock for the Akamai client class.
-    $akamai_client = $this->getMockBuilder('Drupal\akamai\AkamaiClient')
+    $edgegridclient = $this->getMockBuilder('Akamai\Open\EdgeGrid\Client')
       ->disableOriginalConstructor()
       ->setMethods(['request'])
       ->getMock();
-    $akamai_client->expects($this->at(0))
+    $edgegridclient->expects($this->at(0))
       ->method('request')
-      ->with('GET', $this->callback(function($payload) {
+      ->with('GET', $this->callback(function ($payload) {
         return $payload === '/ccu/v2/purges/dummy_id';
       }))
       ->willReturn($response_stub);
-    $akamai_client->expects($this->at(1))
+    $edgegridclient->expects($this->at(1))
       ->method('request')
-      ->with($this->equalTo('GET'), $this->callback(function($payload) {
+      ->with($this->equalTo('GET'), $this->callback(function ($payload) {
         return $payload !== '/ccu/v2/purges/dummy_id';
       }))
       ->willReturn(FALSE);
+    // Create stub for the Akamai Client class.
+    $akamai_client = $this->getMockBuilder('Drupal\akamai\Plugin\Client\AkamaiClientV2')
+      ->setConstructorArgs([
+        [],
+        'v2',
+        [],
+        $edgegridclient,
+        $this->getConfigFactoryStub(['akamai.settings' => $config]),
+        $logger,
+        $status_storage,
+      ])
+      ->setMethods(NULL)
+      ->getMock();
 
     // Test purge status/ get status code.
     $response = $akamai_client->getPurgeStatus('dummy_id');

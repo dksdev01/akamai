@@ -5,6 +5,9 @@ akamai.settings:
   type: config_object
   label: 'Akamai Settings'
   mapping:
+    version:
+      type: string
+      label: 'Akamai client CCU version to use'
     disabled:
       type: boolean
       label: 'Disable Akamai cache clearing globally'
@@ -45,14 +48,26 @@ akamai.settings:
         staging:
           type: boolean
           label: 'Staging'
-    action:
+    action_v2:
       type: mapping
-      label: 'Action'
+      label: 'Action CCUv2'
       mapping:
         remove:
           type: boolean
           label: 'Remove'
           description: 'Remove content entirely from Edge server caches. next time an Edge server receives a request for the content, it will retrieve the current version from the origin server.'
+        invalidate:
+          type: boolean
+          label: 'Invalidate'
+          description: 'Marks the cached content as invalid. The next time a server receives a request for the content, it sends an HTTP conditional GET (If-Modified-Since) request to the origin. If the content has changed, the origin server returns a full fresh copy. Otherwise, the origin normally responds that the content has not changed, and the Edge server can serve the already-cached content.'
+    action_v3:
+      type: mapping
+      label: 'Action CCUv3'
+      mapping:
+        delete:
+          type: boolean
+          label: 'Delete'
+          description: 'Delete content entirely from Edge server caches. next time an Edge server receives a request for the content, it will retrieve the current version from the origin server.'
         invalidate:
           type: boolean
           label: 'Invalidate'

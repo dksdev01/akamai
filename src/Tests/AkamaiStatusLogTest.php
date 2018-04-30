@@ -22,6 +22,8 @@ class AkamaiStatusLogTest extends WebTestBase {
 
   /**
    * User with admin rights.
+   *
+   * @var \Drupal\user\UserInterface
    */
   protected $privilegedUser;
 
@@ -48,9 +50,9 @@ class AkamaiStatusLogTest extends WebTestBase {
     $this->statusStorage = \Drupal::service('akamai.status_storage');
 
     // Create and log in our privileged user.
-    $this->privilegedUser = $this->drupalCreateUser(array(
+    $this->privilegedUser = $this->drupalCreateUser([
       'administer akamai',
-    ));
+    ]);
     $this->drupalLogin($this->privilegedUser);
   }
 
