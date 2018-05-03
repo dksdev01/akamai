@@ -11,7 +11,7 @@
 function akamai_requirements($phase) {
   $requirements = [];
   if ($phase == 'install') {
-    if (!class_exists('\Akamai\Open\EdgeGrid\Auth')) {
+    if (!class_exists('\Akamai\Open\EdgeGrid\Authentication')) {
       $requirements['akamai_auth_dependency'] = [
         'title' => t('Akamai'),
         'description' => t('Akamai requires the akamai-open/edgegrid-auth library. Try installing it with composer manager.'),
