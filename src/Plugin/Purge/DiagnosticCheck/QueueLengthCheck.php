@@ -6,7 +6,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\purge\Plugin\Purge\DiagnosticCheck\DiagnosticCheckBase;
 use Drupal\purge\Plugin\Purge\DiagnosticCheck\DiagnosticCheckInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\akamai\AkamaiClient;
+use Drupal\akamai\AkamaiClientInterface;
 use GuzzleHttp\Exception\ClientException;
 
 /**
@@ -32,7 +32,7 @@ class QueueLengthCheck extends DiagnosticCheckBase implements DiagnosticCheckInt
   /**
    * An Akamai web services client.
    *
-   * @var \Drupal\akamai\AkamaiClient
+   * @var \Drupal\akamai\AkamaiClientInterface
    */
   protected $akamaiClient;
 
@@ -47,10 +47,10 @@ class QueueLengthCheck extends DiagnosticCheckBase implements DiagnosticCheckInt
    *   The plugin implementation definition.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config
    *   The factory for configuration objects.
-   * @param \Drupal\akamai\AkamaiClient $akamai_client
+   * @param \Drupal\akamai\AkamaiClientInterface $akamai_client
    *   An Akamai web services client.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config, AkamaiClient $akamai_client) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config, AkamaiClientInterface $akamai_client) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->config = $config->get('akamai.settings');
     $this->akamaiClient = $akamai_client;
