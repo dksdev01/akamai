@@ -4,6 +4,7 @@ namespace Drupal\Tests\akamai\Unit;
 
 use Drupal\Tests\UnitTestCase;
 use Psr\Log\LoggerInterface;
+use Drupal\akamai\AkamaiAuthentication;
 
 /**
  * @coversDefaultClass \Drupal\akamai\AkamaiClient
@@ -170,6 +171,12 @@ class AkamaiClientTest extends UnitTestCase {
     $client_config = ['devel_mode' => TRUE];
     $akamai_client = $this->getClient($client_config);
     $this->assertEquals(['base_uri' => 'http://debug.com', 'timeout' => 300], $akamai_client->createClientConfig());
+
+    $client_config = ['rest_api_url' => 'http://example.com'] + $this->getEdgeRcConfig();
+    $config_factory = $this->getConfigFactoryStub(['akamai.settings' => $client_config]);
+    $auth = AkamaiAuthentication::create($config_factory);
+    $akamai_client = $this->getClient($client_config);
+    $this->assertEquals(['base_uri' => 'edgerc-test.com', 'timeout' => 300], $akamai_client->createClientConfig($auth));
   }
 
   /**
@@ -416,6 +423,20 @@ class AkamaiClientTest extends UnitTestCase {
     ];
 
     $this->assertEquals($expected, $akamai_client->normalizeUrls($input));
+  }
+
+  /**
+   * Returns config for edge rc authentication mode.
+   *
+   * @return array
+   *   An array of config values.
+   */
+  protected function getEdgeRcConfig() {
+    return [
+      'storage_method' => 'file',
+      'edgerc_path' => realpath(__DIR__ . '/fixtures/.edgerc'),
+      'edgerc_section' => 'default',
+    ];
   }
 
 }

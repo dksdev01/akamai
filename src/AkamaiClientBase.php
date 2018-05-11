@@ -119,7 +119,6 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->logger = $logger;
     $this->configFactory = $config_factory;
-    $this->akamaiClientConfig = $this->createClientConfig();
     $this->statusStorage = $status_storage;
     $this->client = $client;
 
@@ -139,6 +138,8 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
     if ($this->logRequests) {
       $this->enableRequestLogging();
     }
+
+    $this->akamaiClientConfig = $this->createClientConfig($auth);
 
     $this->client->__construct($this->akamaiClientConfig, $auth);
   }
@@ -166,12 +167,15 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
   /**
    * Creates a config array for consumption by Akamai\Open\EdgeGrid\Client.
    *
+   * @param \Drupal\akamai\AkamaiAuthentication $config_factory
+   *   The auth instance.
+   *
    * @return array
    *   The config array.
    *
    * @see Akamai\Open\EdgeGrid\Client::setBasicOptions
    */
-  public function createClientConfig() {
+  public function createClientConfig(AkamaiAuthentication $auth = null) {
     $client_config = [];
     // If we are in devel mode, use the mocked endpoint.
     if ($this->configFactory->get('akamai.settings')->get('devel_mode') == TRUE) {
@@ -179,6 +183,10 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
     }
     else {
       $client_config['base_uri'] = $this->configFactory->get('akamai.settings')->get('rest_api_url');
+    }
+
+    if ($auth && $this->configFactory->get('akamai.settings')->get('storage_method') == 'file') {
+      $client_config['base_uri'] = $auth->getHost();
     }
 
     $client_config['timeout'] = $this->configFactory->get('akamai.settings')->get('timeout');
