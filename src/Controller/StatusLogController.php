@@ -2,10 +2,10 @@
 
 namespace Drupal\akamai\Controller;
 
-use Drupal\akamai\PurgeStatus;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Datetime\DateFormatter;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\akamai\PurgeStatus;
 use Drupal\akamai\StatusStorage;
 use Drupal\Core\Url;
 use Drupal\Component\Serialization\Json;
@@ -60,7 +60,6 @@ class StatusLogController extends ControllerBase {
    */
   public function listAction() {
     $client = \Drupal::service('akamai.client.factory')->get();
-    $length = $client->getQueueLength();
 
     $statuses = $this->statusStorage->getResponseStatuses();
     $rows = [];
@@ -87,9 +86,11 @@ class StatusLogController extends ControllerBase {
       '#sticky' => TRUE,
     ];
 
-    $build[] = [
-      '#markup' => $this->t('Items remaining in Akamai purge queue: %length', ['%length' => $length]),
-    ];
+    if ($client->usesQueue()) {
+      $build[] = [
+        '#markup' => $this->t('Items remaining in Akamai purge queue: %length', ['%length' => $client->getQueueLength()]),
+      ];
+    }
 
     return $build;
   }
@@ -147,11 +148,13 @@ class StatusLogController extends ControllerBase {
 
     // @todo inject
     $client = \Drupal::service('akamai.client.factory')->get();
-    // Get a new status update.
-    $status = Json::decode($client->getPurgeStatus($purge_id)->getBody());
-    // Save it in storage.
-    $this->statusStorage->save($status);
-    // Now get it back so we can use object functions.
+    if ($client->usesQueue()) {
+      // Get a new status update.
+      $status = Json::decode($client->getPurgeStatus($purge_id)->getBody());
+      // Save it in storage.
+      $this->statusStorage->save($status);
+      // Now get it back so we can use object functions.
+    }
     $status = new PurgeStatus($this->statusStorage->get($purge_id));
 
     $build[] = $this->purgeStatusTable($status);

@@ -7,7 +7,7 @@ use Psr\Log\LoggerInterface;
 use Drupal\akamai\AkamaiAuthentication;
 
 /**
- * @coversDefaultClass \Drupal\akamai\AkamaiClient
+ * @coversDefaultClass \Drupal\akamai\Plugin\Client\AkamaiClientV2
  *
  * @group Akamai
  */
@@ -19,7 +19,7 @@ class AkamaiClientTest extends UnitTestCase {
    * @param array $config
    *   An array of client configuration.
    *
-   * @return \Drupal\akamai\AkamaiClient
+   * @return \Drupal\akamai\Plugin\Client\AkamaiClientV2
    *   An AkamaiClient to test.
    */
   protected function getClient(array $config = []) {

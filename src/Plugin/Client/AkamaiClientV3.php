@@ -37,6 +37,13 @@ class AkamaiClientV3 extends AkamaiClientBase {
   protected $type = 'url';
 
   /**
+   * Represents whether this client uses a queuing system or not.
+   *
+   * @var boolean
+   */
+  protected $usesQueue = FALSE;
+
+  /**
    * Checks that we can connect with the supplied credentials.
    *
    * @return bool

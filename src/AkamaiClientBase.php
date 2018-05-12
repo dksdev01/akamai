@@ -496,4 +496,14 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
     return $bytes < self::MAX_BODY_SIZE;
   }
 
+  /**
+   * Returns whether the client uses a queue or not.
+   *
+   * @return boolean
+   *   TRUE when this client utilises a queue, FALSE when it doesn't
+   */
+  public function usesQueue() {
+    return (bool) $this->usesQueue;
+  }
+
 }

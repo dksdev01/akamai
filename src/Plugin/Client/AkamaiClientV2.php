@@ -17,6 +17,13 @@ use Drupal\akamai\AkamaiClientBase;
 class AkamaiClientV2 extends AkamaiClientBase {
 
   /**
+   * Represents whether this client uses a queuing system or not.
+   *
+   * @var boolean
+   */
+  protected $usesQueue = TRUE;
+
+  /**
    * The queue name to clear.
    *
    * @var string

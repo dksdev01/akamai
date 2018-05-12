@@ -73,6 +73,10 @@ class QueueLengthCheck extends DiagnosticCheckBase implements DiagnosticCheckInt
    * {@inheritdoc}
    */
   public function run() {
+    if (!$this->akamaiClient->usesQueue()) {
+      $this->recommendation = $this->t("CCUv3 doesn't support queuing.");
+      return SELF::SEVERITY_OK;
+    }
     try {
       $length = $this->akamaiClient->getQueueLength();
       $this->recommendation = $length === 0 ?
