@@ -84,3 +84,6 @@ akamai.settings:
     status_expire:
       type: integer
       label: 'Expire purge status log entries after this many seconds'
+    edge_cache_tag_header:
+      type: boolean
+      label: 'Expose Edge-Cache-Tag response header to send cache tags to Akamai'

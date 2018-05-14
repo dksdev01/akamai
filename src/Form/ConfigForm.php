@@ -251,6 +251,13 @@ class ConfigForm extends ConfigFormBase {
       '#size' => 12,
     ];
 
+    $form['edge_cache_tag_header'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable Edge-Cache-Tag Header'),
+      '#default_value' => $config->get('edge_cache_tag_header'),
+      '#description' => $this->t('Sends Edge-Cache-Tag header in responses for Akamai'),
+    ];
+
     $form['devel_fieldset'] = [
       '#type' => 'fieldset',
       '#title' => t('Development Options'),
@@ -329,6 +336,7 @@ class ConfigForm extends ConfigFormBase {
       ->set('devel_mode', $values['devel_mode'])
       ->set('mock_endpoint', $values['mock_endpoint'])
       ->set('log_requests', $values['log_requests'])
+      ->set('edge_cache_tag_header', $values['edge_cache_tag_header'])
       ->set('disabled', $values['disabled'])
       ->save();
 

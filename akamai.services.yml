@@ -21,3 +21,10 @@ services:
     class: Drupal\akamai\EventSubscriber\ConfigSubscriber
     tags:
       - { name: event_subscriber }
+  akamai.cacheable_response_subscriber:
+    class: Drupal\akamai\EventSubscriber\CacheableResponseSubscriber
+    arguments: ['@config.factory', '@akamai.helper.cachetagformatter']
+    tags:
+      - { name: event_subscriber }
+  akamai.helper.cachetagformatter:
+    class: Drupal\akamai\Helper\CacheTagFormatter

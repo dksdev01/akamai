@@ -135,11 +135,11 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
     // Create an authentication object so we can sign requests.
     $auth = AkamaiAuthentication::create($config_factory);
 
+    $this->akamaiClientConfig = $this->createClientConfig($auth);
+
     if ($this->logRequests) {
       $this->enableRequestLogging();
     }
-
-    $this->akamaiClientConfig = $this->createClientConfig($auth);
 
     $this->client->__construct($this->akamaiClientConfig, $auth);
   }
@@ -278,6 +278,19 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
    */
   public function purgeCpCodes(array $cpcodes) {
     return $this->purgeRequest($cpcodes);
+  }
+
+  /**
+   * Purges a list of tag objects.
+   *
+   * @param array $tags
+   *   List of tags to purge.
+   *
+   * @return \GuzzleHttp\Psr7\Response
+   *   Response to purge request.
+   */
+  public function purgeTags(array $tags) {
+    return $this->purgeRequest($tags);
   }
 
   /**

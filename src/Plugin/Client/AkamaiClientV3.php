@@ -99,17 +99,20 @@ class AkamaiClientV3 extends AkamaiClientBase {
   /**
    * Create an array to pass to Akamai's purge function.
    *
-   * @param string[] $urls
+   * @param string[] $objects
    *   A list of URLs.
    *
    * @return array
    *   An array suitable for sending to the Akamai purge endpoint.
    */
-  public function createPurgeBody(array $urls) {
-    return [
-      'objects' => $urls,
-      'hostname' => $this->baseUrl,
+  public function createPurgeBody(array $objects) {
+    $body = [
+      'objects' => $objects,
     ];
+    if ($this->type == 'url') {
+      $body['hostname'] = $this->baseUrl;
+    }
+    return (object) $body;
   }
 
   /**

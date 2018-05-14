@@ -29,3 +29,12 @@ function akamai_requirements($phase) {
 
   return $requirements;
 }
+
+/**
+ * Set edge_cache_tag_header default.
+ */
+ function akamai_update_8001(&$sandbox) {
+   $config = \Drupal::service('config.factory')->getEditable('akamai.settings');
+   $config->set('edge_cache_tag_header', FALSE);
+   $config->save();
+ }

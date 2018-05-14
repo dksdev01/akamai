@@ -22,3 +22,4 @@ devel_mode: TRUE
 mock_endpoint: 'https://akamaiopen2purgeccuproduction.docs.apiary.io'
 log_requests: FALSE
 status_expire: 1209600
+edge_cache_tag_header: FALSE
