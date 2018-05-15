@@ -4,6 +4,7 @@ namespace Drupal\akamai\Plugin\Client;
 
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\akamai\AkamaiClientBase;
+use GuzzleHttp\Exception\RequestException;
 
 /**
  * Defines the CCUv3 client version for Akamai.

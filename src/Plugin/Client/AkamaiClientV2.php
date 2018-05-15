@@ -5,6 +5,7 @@ namespace Drupal\akamai\Plugin\Client;
 use Drupal\Component\Serialization\Json;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\akamai\AkamaiClientBase;
+use GuzzleHttp\Exception\RequestException;
 
 /**
  * Defines the CCUv2 client version for Akamai.
