@@ -4,6 +4,7 @@ namespace Drupal\akamai;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Akamai\Open\EdgeGrid\Authentication;
+use Akamai\Open\EdgeGrid\Authentication\Exception\ConfigException;
 
 /**
  * Connects to the Akamai EdgeGrid.
@@ -35,7 +36,12 @@ class AkamaiAuthentication extends Authentication {
     elseif ($config->get('storage_method') == 'file') {
       $section = $config->get('edgerc_section') ?: 'default';
       $path = $config->get('edgerc_path') ?: NULL;
-      $auth = static::createFromEdgeRcFile($section, $path);
+      try {
+        $auth = static::createFromEdgeRcFile($section, $path);
+      }
+      catch (ConfigException $e) {
+        drupal_set_message($e->getMessage(), 'warning');
+      }
     }
     else {
       $auth->setHost($config->get('rest_api_url'));
