@@ -14,7 +14,7 @@ use Drupal\purge\Plugin\Purge\Invalidation\InvalidationInterface;
  *   id = "akamai",
  *   label = @Translation("Akamai Purger"),
  *   description = @Translation("Provides a Purge service for Akamai CCU."),
- *   types = {"url", "everything"},
+ *   types = {"path", "url", "everything"},
  *   configform = "Drupal\akamai\Form\ConfigForm",
  * )
  */
@@ -84,6 +84,9 @@ class AkamaiPurger extends PurgerBase {
       $invalidation_type = $invalidation->getPluginId();
 
       switch ($invalidation_type) {
+        case 'path':
+          $urls_to_clear[] = $this->normalizePath($invalidation->getExpression());
+          break;
         case 'url':
           // URL invalidations should be of type
           // \Drupal\purge\Plugin\Purge\Invalidation\UrlInvalidation.
