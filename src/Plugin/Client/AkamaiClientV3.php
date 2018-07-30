@@ -111,7 +111,12 @@ class AkamaiClientV3 extends AkamaiClientBase {
       'objects' => $objects,
     ];
     if ($this->type == 'url') {
-      $body['hostname'] = $this->baseUrl;
+      $purge_urls_with_hostname = $this->configFactory
+        ->get('akamai.settings')
+        ->get('purge_urls_with_hostname');
+      if ($purge_urls_with_hostname) {
+        $body['hostname'] = $this->baseUrl;
+      }
     }
     return (object) $body;
   }
@@ -148,7 +153,8 @@ class AkamaiClientV3 extends AkamaiClientBase {
    * {@inheritdoc}
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
-    $default_action = key(array_filter($this->configFactory->get('akamai.settings')->get('action_v3')));
+    $config = $this->configFactory->get('akamai.settings');
+    $default_action = key(array_filter($config->get('action_v3')));
     $form['action'] = [
       '#type' => 'select',
       '#title' => $this->t('Clearing Action Type Default'),
@@ -159,6 +165,12 @@ class AkamaiClientV3 extends AkamaiClientBase {
       ],
       '#description' => $this->t('The default clearing action. The options are <em>delete</em> (which deletes the item from the Akamai cache) and <em>invalidate</em> (which leaves the item in the cache, but invalidates it so that the origin will be hit on the next request).'),
       '#required' => TRUE,
+    ];
+    $form['purge_urls_with_hostname'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Purge URLs With Common Hostname'),
+      '#default_value' => $config->get('purge_urls_with_hostname'),
+      '#description' => $this->t('Sends Base Path as "hostname" Fast Purge API request data member when purging URLs'),
     ];
     return $form;
   }
@@ -172,6 +184,7 @@ class AkamaiClientV3 extends AkamaiClientBase {
 
     $this->configFactory->getEditable('akamai.settings')
       ->set('action_v3', $actions)
+      ->set('purge_urls_with_hostname', $form_state->getValue('purge_urls_with_hostname'))
       ->save();
   }
 

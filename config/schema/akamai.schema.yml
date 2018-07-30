@@ -87,3 +87,6 @@ akamai.settings:
     edge_cache_tag_header:
       type: boolean
       label: 'Expose Edge-Cache-Tag response header to send cache tags to Akamai'
+    purge_urls_with_hostname:
+      type: boolean
+      label: 'Sends Base Path as "hostname" Fast Purge API request data member when purging URLs'

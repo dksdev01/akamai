@@ -38,3 +38,12 @@ function akamai_requirements($phase) {
    $config->set('edge_cache_tag_header', FALSE);
    $config->save();
  }
+
+/**
+ * Set purge_urls_with_hostname setting to match previous behavior.
+ */
+function akamai_update_8002(&$sandbox) {
+  $config = \Drupal::service('config.factory')->getEditable('akamai.settings');
+  $config->set('purge_urls_with_hostname', TRUE);
+  $config->save();
+}
