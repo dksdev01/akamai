@@ -20,7 +20,7 @@ class AkamaiClientV2 extends AkamaiClientBase {
   /**
    * Represents whether this client uses a queuing system or not.
    *
-   * @var boolean
+   * @var bool
    */
   protected $usesQueue = TRUE;
 

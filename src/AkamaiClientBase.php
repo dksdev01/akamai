@@ -167,7 +167,7 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
   /**
    * Creates a config array for consumption by Akamai\Open\EdgeGrid\Client.
    *
-   * @param \Drupal\akamai\AkamaiAuthentication $config_factory
+   * @param \Drupal\akamai\AkamaiAuthentication $auth
    *   The auth instance.
    *
    * @return array
@@ -175,7 +175,7 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
    *
    * @see Akamai\Open\EdgeGrid\Client::setBasicOptions
    */
-  public function createClientConfig(AkamaiAuthentication $auth = null) {
+  public function createClientConfig(AkamaiAuthentication $auth = NULL) {
     $client_config = [];
     // If we are in devel mode, use the mocked endpoint.
     if ($this->configFactory->get('akamai.settings')->get('devel_mode') == TRUE) {
@@ -512,7 +512,7 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
   /**
    * Returns whether the client uses a queue or not.
    *
-   * @return boolean
+   * @return bool
    *   TRUE when this client utilises a queue, FALSE when it doesn't
    */
   public function usesQueue() {

@@ -87,6 +87,7 @@ class AkamaiPurger extends PurgerBase {
         case 'path':
           $urls_to_clear[] = $this->normalizePath($invalidation->getExpression());
           break;
+
         case 'url':
           // URL invalidations should be of type
           // \Drupal\purge\Plugin\Purge\Invalidation\UrlInvalidation.

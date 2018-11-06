@@ -25,4 +25,5 @@ class CacheTagFormatter {
     $tag = preg_replace(self::RESTRICTED_CHARS_PATTERN, '_', $tag);
     return $tag;
   }
+
 }

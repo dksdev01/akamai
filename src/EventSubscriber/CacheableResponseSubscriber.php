@@ -33,7 +33,6 @@ class CacheableResponseSubscriber implements EventSubscriberInterface {
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The configuration factory.
-   *
    * @param \Drupal\akamai\Helper\CacheTagFormatter $formatter
    *   The cache tag formatter.
    */
