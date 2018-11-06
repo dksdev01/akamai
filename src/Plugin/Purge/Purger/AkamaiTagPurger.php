@@ -93,7 +93,9 @@ class AkamaiTagPurger extends PurgerBase {
     // Purge tags.
     $invalidation_state = InvalidationInterface::SUCCEEDED;
     $result = $this->client->purgeTags($tags_to_clear);
-    $invalidation_state = $result ?: InvalidationInterface::FAILED;
+    if (!$result) {
+      $invalidation_state = InvalidationInterface::FAILED;
+    }
     // Set Invalidation status.
     foreach ($invalidations as $invalidation) {
       $invalidation->setState($invalidation_state);
