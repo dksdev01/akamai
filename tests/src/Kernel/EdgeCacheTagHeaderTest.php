@@ -49,6 +49,13 @@ class EdgeCacheTagHeaderTest extends KernelTestBase {
     $this->assertEqual(200, $response->getStatusCode());
     $this->assertEqual($response->headers->has('Edge-Cache-Tag'), TRUE);
     $this->assertEqual($response->headers->get('Edge-Cache-Tag'), 'config_user.role.anonymous,http_response,rendered');
+
+    // Verify tag blacklisting.
+    $config->set('edge_cache_tag_header_blacklist', ['config:'])->save();
+    $response = $kernel->handle($request);
+    $this->assertEqual(200, $response->getStatusCode());
+    $this->assertEqual($response->headers->has('Edge-Cache-Tag'), TRUE);
+    $this->assertEqual($response->headers->get('Edge-Cache-Tag'), 'http_response,rendered');
   }
 
 }

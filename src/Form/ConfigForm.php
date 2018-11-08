@@ -251,11 +251,24 @@ class ConfigForm extends ConfigFormBase {
       '#size' => 12,
     ];
 
-    $form['edge_cache_tag_header'] = [
+    $form['edge_cache_tag_header_fieldset'] = [
+      '#type' => 'fieldset',
+      '#title' => t('Edge-Cache-Tag Header Settings'),
+    ];
+
+    $form['edge_cache_tag_header_fieldset']['edge_cache_tag_header'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Enable Edge-Cache-Tag Header'),
       '#default_value' => $config->get('edge_cache_tag_header'),
       '#description' => $this->t('Sends Edge-Cache-Tag header in responses for Akamai'),
+    ];
+
+    $form['edge_cache_tag_header_fieldset']['edge_cache_tag_header_blacklist'] = [
+      '#type' => 'textarea',
+      '#title' => t('Cache Tag Blacklist'),
+      '#default_value' => $config->get('edge_cache_tag_header_blacklist'),
+      '#description' => $this->t('List of tag prefixes to blacklist from the Edge-Cache-Tag header. One per line.'),
+      '#pre_render' => [[$this, 'implodeElement']],
     ];
 
     $form['devel_fieldset'] = [
@@ -320,6 +333,9 @@ class ConfigForm extends ConfigFormBase {
   public function submitform(array &$form, FormStateInterface $form_state) {
     $values = $form_state->getValues();
 
+    $blacklist = trim($values['edge_cache_tag_header_blacklist']);
+    $blacklist = !empty($blacklist) ? array_map('trim', explode(PHP_EOL, $blacklist)) : [];
+
     $this->config('akamai.settings')
       ->set('version', $values['ccu_version'])
       ->set('rest_api_url', $values['rest_api_url'])
@@ -337,6 +353,7 @@ class ConfigForm extends ConfigFormBase {
       ->set('mock_endpoint', $values['mock_endpoint'])
       ->set('log_requests', $values['log_requests'])
       ->set('edge_cache_tag_header', $values['edge_cache_tag_header'])
+      ->set('edge_cache_tag_header_blacklist', $blacklist)
       ->set('disabled', $values['disabled'])
       ->save();
 
@@ -405,6 +422,14 @@ class ConfigForm extends ConfigFormBase {
   protected function isHttps() {
     $request = $this->requestStack->getCurrentRequest();
     return $request->getScheme() === 'https';
+  }
+
+  /**
+   * Implodes an array using PHP_EOL.
+   */
+  public function implodeElement(array $element) {
+    $element['#value'] = !empty($element['#value']) ? implode(PHP_EOL, $element['#value']) : '';
+    return $element;
   }
 
 }

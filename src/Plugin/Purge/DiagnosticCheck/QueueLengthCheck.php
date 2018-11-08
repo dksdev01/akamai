@@ -75,18 +75,18 @@ class QueueLengthCheck extends DiagnosticCheckBase implements DiagnosticCheckInt
   public function run() {
     if (!$this->akamaiClient->usesQueue()) {
       $this->recommendation = $this->t("CCUv3 doesn't support queuing.");
-      return SELF::SEVERITY_OK;
+      return self::SEVERITY_OK;
     }
     try {
       $length = $this->akamaiClient->getQueueLength();
       $this->recommendation = $length === 0 ?
         $this->t('Purging queue is empty.') :
         $this->formatPlural($length, '%count item in the queue', '%count items in the queue', ['%count' => $length]);
-      return SELF::SEVERITY_OK;
+      return self::SEVERITY_OK;
     }
     catch (ClientException $e) {
       $this->recommendation = $this->t('Unable to connect to the Akamai API. Please check your credentials and endpoint.');
-      return SELF::SEVERITY_ERROR;
+      return self::SEVERITY_ERROR;
     }
 
   }

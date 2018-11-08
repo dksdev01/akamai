@@ -61,22 +61,22 @@ class CredentialCheck extends DiagnosticCheckBase {
 
     if ($this->config->get('disabled') == TRUE) {
       $this->recommendation = $this->t('Akamai purging is disabled.');
-      return SELF::SEVERITY_INFO;
+      return self::SEVERITY_INFO;
     }
 
     if ($this->config->get('devel_mode') == TRUE) {
       $this->recommendation = $this->t('Running in development mode, no credentials required.');
-      return SELF::SEVERITY_OK;
+      return self::SEVERITY_OK;
     }
 
     // @todo Getting this globally feels gross. Is there a better way?
     if (\Drupal::state()->get('akamai.valid_credentials') == FALSE) {
       $this->recommendation = $this->t("Invalid API credentials.");
-      return SELF::SEVERITY_ERROR;
+      return self::SEVERITY_ERROR;
     }
 
     $this->recommendation = $this->t('Valid API credentials detected.');
-    return SELF::SEVERITY_OK;
+    return self::SEVERITY_OK;
   }
 
 }

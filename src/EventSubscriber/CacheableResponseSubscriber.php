@@ -61,16 +61,26 @@ class CacheableResponseSubscriber implements EventSubscriberInterface {
     }
 
     $response = $event->getResponse();
-    $header = $this->configFactory->get('akamai.settings')->get('edge_cache_tag_header');
+    $config = $this->configFactory->get('akamai.settings');
+    $header = $config->get('edge_cache_tag_header');
 
     // Send headers if response is cacheable and the setting is enabled.
     if ($header && $response instanceof CacheableResponseInterface) {
       $tags = $response->getCacheableMetadata()->getCacheTags();
-      $header = '';
-      foreach ($tags as $tag) {
-        $header .= ",{$this->tagFormatter->format($tag)}";
+      $blacklist = $config->get('edge_cache_tag_header_blacklist');
+      $blacklist = is_array($blacklist) ? $blacklist : [];
+      $tags = array_filter($tags, function ($tag) use ($blacklist) {
+        foreach ($blacklist as $prefix) {
+          if (strpos($tag, $prefix) !== FALSE) {
+            return FALSE;
+          }
+        }
+        return TRUE;
+      });
+      foreach ($tags as &$tag) {
+        $tag = $this->tagFormatter->format($tag);
       }
-      $response->headers->set('Edge-Cache-Tag', substr($header, 1));
+      $response->headers->set('Edge-Cache-Tag', implode(',', $tags));
     }
   }
 

@@ -14,14 +14,13 @@ class AkamaiCommands extends DrushCommands {
    *
    * @param string $cpcode
    *   A cpcode to clear. You can provide as many cpcodes you like.
-   *
-   * @option action Clearing action type.
-   * @option domain The Akamai domain to use for cache clearing.
+   * @param array $options
+   *   Options for purge request.
    *
    * @command akamai:clear:cpcode
    * @aliases akcc
    */
-  public function clearCpCode($cpcode, $options = [
+  public function clearCpCode($cpcode, array $options = [
     'action' => 'invalidate',
     'domain' => 'production',
   ]) {
@@ -41,14 +40,13 @@ class AkamaiCommands extends DrushCommands {
    *
    * @param string $path
    *   A path to clear. You can provide as many paths you like.
-   *
-   * @option action Clearing action type.
-   * @option domain The Akamai domain to use for cache clearing.
+   * @param array $options
+   *   Options for purge request.
    *
    * @command akamai:clear:url
    * @aliases akcu
    */
-  public function clearUrl($path, $options = [
+  public function clearUrl($path, array $options = [
     'action' => 'invalidate',
     'domain' => 'production',
   ]) {

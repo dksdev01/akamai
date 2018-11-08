@@ -90,3 +90,9 @@ akamai.settings:
     purge_urls_with_hostname:
       type: boolean
       label: 'Sends Base Path as "hostname" Fast Purge API request data member when purging URLs'
+    edge_cache_tag_header_blacklist:
+      type: sequence
+      label: 'Edge-Cache-Tag response header tag blacklist'
+      sequence:
+        type: string
+        label: tag
