@@ -19,10 +19,12 @@ function akamai_cron() {
   $statuses = $status_storage->getResponseStatuses();
   $to_delete = [];
   // Mark logs older than our expire period for deletion.
-  foreach ($statuses as $status) {
-    $purge_status = new PurgeStatus($status);
-    if (($purge_status->getLastCheckedTime() + $expire) <= REQUEST_TIME) {
-      $to_delete[] = $purge_status->getPurgeId();
+  if (!empty($statuses)) {
+    foreach ($statuses as $status) {
+      $purge_status = new PurgeStatus($status);
+      if (($purge_status->getLastCheckedTime() + $expire) <= REQUEST_TIME) {
+        $to_delete[] = $purge_status->getPurgeId();
+      }
     }
   }
   // Now delete them.
