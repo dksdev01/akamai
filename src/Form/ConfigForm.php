@@ -6,6 +6,7 @@ use Drupal\akamai\AkamaiClientManager;
 use Drupal\Core\Config\ConfigFactory;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -23,6 +24,13 @@ class ConfigForm extends ConfigFormBase {
   protected $availableVersions = [];
 
   /**
+   * A messenger interface.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
    * Constructs a new ConfigForm.
    *
    * @param \Drupal\Core\Config\ConfigFactory $configFactory
@@ -31,12 +39,15 @@ class ConfigForm extends ConfigFormBase {
    *   The request_stack service.
    * @param \Drupal\akamai\AkamaiClientManager $manager
    *   The Akamai Client plugin manager.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The Drupal messenger service.
    */
-  public function __construct(ConfigFactory $configFactory, RequestStack $request_stack, AkamaiClientManager $manager) {
+  public function __construct(ConfigFactory $configFactory, RequestStack $request_stack, AkamaiClientManager $manager, MessengerInterface $messenger) {
     $this->requestStack = $request_stack;
     foreach ($manager->getAvailableVersions() as $id => $definition) {
       $this->availableVersions[$id] = $manager->createInstance($id);
     }
+    $this->messenger = $messenger;
     parent::__construct($configFactory);
   }
 
@@ -47,7 +58,8 @@ class ConfigForm extends ConfigFormBase {
     return new static(
       $container->get('config.factory'),
       $container->get('request_stack'),
-      $container->get('akamai.client.manager')
+      $container->get('akamai.client.manager'),
+      $container->get('messenger')
     );
   }
 
@@ -68,10 +80,10 @@ class ConfigForm extends ConfigFormBase {
   }
 
   /**
-   * Shows a warning via drupal_set_message().
+   * Shows a warning via $this->messenger->addWarning().
    */
   public function httpsWarning() {
-    drupal_set_message($this->t('If you submit this form via HTTP, your API credentials will be sent in clear text and may be intercepted. For information on setting up HTTPs, see <a href="https://www.drupal.org/https-information">Enabling HTTPs</a>.'), 'warning');
+    $this->messenger->addWarning($this->t('If you submit this form via HTTP, your API credentials will be sent in clear text and may be intercepted. For information on setting up HTTPs, see <a href="https://www.drupal.org/https-information">Enabling HTTPs</a>.'));
   }
 
   /**
@@ -370,7 +382,7 @@ class ConfigForm extends ConfigFormBase {
       \Drupal::service('messenger')->addWarning($this->t('You need to provide non-default credentials for this module to work.'));
     }
 
-    drupal_set_message($this->t('Settings saved.'));
+    $this->messenger->addMessage($this->t('Settings saved.'));
   }
 
   /**
@@ -379,10 +391,10 @@ class ConfigForm extends ConfigFormBase {
   protected function checkCredentials() {
     $client = \Drupal::service('akamai.client.factory')->get();
     if ($client->isAuthorized()) {
-      drupal_set_message('Authenticated to Akamai.');
+      $this->messenger->addMessage('Authenticated to Akamai.');
     }
     else {
-      drupal_set_message('Akamai authentication failed.', 'error');
+      $this->messenger->addError('Akamai authentication failed.');
     }
   }
 

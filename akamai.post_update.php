@@ -1,6 +1,11 @@
 <?php
 
 /**
+ * @file
+ * Post update hook implementations for the Akamai Drupal 8 integration module.
+ */
+
+/**
  * Issue #3011797: Remove devel mode config.
  */
 function akamai_post_update_3011797_remove_devel_mode() {

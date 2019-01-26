@@ -36,7 +36,7 @@ class AkamaiAuthentication extends Authentication {
         $auth = static::createFromEdgeRcFile($section, $path);
       }
       catch (ConfigException $e) {
-        drupal_set_message($e->getMessage(), 'warning');
+        \Drupal::messenger()->addWarning($e->getMessage());
       }
     }
     else {

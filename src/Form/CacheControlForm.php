@@ -7,6 +7,7 @@ use Drupal\Component\Utility\Unicode;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -30,13 +31,23 @@ class CacheControlForm extends FormBase {
   protected $aliasManager;
 
   /**
+   * A messenger interface.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
    * Constructs a new CacheControlForm.
    *
    * @param \Drupal\akamai\AkamaiClientFactory $factory
    *   The akamai client factory.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The Drupal messenger service.
    */
-  public function __construct(AkamaiClientFactory $factory) {
+  public function __construct(AkamaiClientFactory $factory, MessengerInterface $messenger) {
     $this->akamaiClient = $factory->get();
+    $this->messenger = $messenger;
   }
 
   /**
@@ -44,7 +55,8 @@ class CacheControlForm extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('akamai.client.factory')
+      $container->get('akamai.client.factory'),
+      $container->get('messenger')
     );
   }
 
@@ -218,12 +230,12 @@ class CacheControlForm extends FormBase {
     }
 
     if ($response) {
-      drupal_set_message($this->t('Requested :action of the following objects: :objects',
+      $this->messenger->addMessage($this->t('Requested :action of the following objects: :objects',
         [':action' => $action, ':objects' => implode(', ', $urls_to_clear)])
       );
     }
     else {
-      drupal_set_message($this->t('There was an error clearing the cache. Check logs for further detail.'), 'error');
+      $this->messenger->addError($this->t('There was an error clearing the cache. Check logs for further detail.'));
     }
   }
 
@@ -232,7 +244,7 @@ class CacheControlForm extends FormBase {
    */
   protected function showAuthenticationWarning() {
     $message = $this->t('You are not authenticated to Akamai CCU v2. Until you authenticate, you will not be able to clear URLs from the Akamai cache. <a href=:url">Update settings now</a>.', [':url' => Url::fromRoute('akamai.settings')->toString()]);
-    drupal_set_message($message, 'warning');
+    $this->messenger->addWarning($message);
   }
 
 }

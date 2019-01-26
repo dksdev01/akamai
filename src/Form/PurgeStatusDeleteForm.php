@@ -4,6 +4,7 @@ namespace Drupal\akamai\Form;
 
 use Drupal\Core\Form\ConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\akamai\StatusStorage;
@@ -28,13 +29,23 @@ class PurgeStatusDeleteForm extends ConfirmFormBase {
   protected $statusStorage;
 
   /**
+   * A messenger interface.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
    * Constructs a new PurgeStatusDeleteForm.
    *
    * @param \Drupal\akamai\StatusStorage $status_log
    *   Status storage service.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The Drupal messenger service.
    */
-  public function __construct(StatusStorage $status_log) {
+  public function __construct(StatusStorage $status_log, MessengerInterface $messenger) {
     $this->statusStorage = $status_log;
+    $this->messenger = $messenger;
   }
 
   /**
@@ -42,7 +53,8 @@ class PurgeStatusDeleteForm extends ConfirmFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('akamai.status_storage')
+      $container->get('akamai.status_storage'),
+      $container->get('messenger')
     );
   }
 
@@ -89,7 +101,7 @@ class PurgeStatusDeleteForm extends ConfirmFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $this->statusStorage->delete($this->purgeId);
-    drupal_set_message($this->t('%purge_id deleted.', ['%purge_id' => $this->purgeId]));
+    $this->messenger->addMessage($this->t('%purge_id deleted.', ['%purge_id' => $this->purgeId]));
     // Redirect to the listing page.
     $form_state->setRedirect('akamai.statuslog_list');
   }

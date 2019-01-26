@@ -14,14 +14,14 @@ function akamai_requirements($phase) {
     if (!class_exists('\Akamai\Open\EdgeGrid\Authentication')) {
       $requirements['akamai_auth_dependency'] = [
         'title' => t('Akamai'),
-        'description' => t('Akamai requires the akamai-open/edgegrid-auth library. Try installing it with composer manager.'),
+        'description' => t('Akamai requires the akamai-open/edgegrid-auth library.'),
         'severity' => REQUIREMENT_ERROR,
       ];
     }
     if (!class_exists('\Akamai\Open\EdgeGrid\Client')) {
       $requirements['akamai_client_dependency'] = [
         'title' => t('Akamai'),
-        'description' => t('Akamai requires the akamai-open/edgegrid-client library. Try installing it with composer manager.'),
+        'description' => t('Akamai requires the akamai-open/edgegrid-client library.'),
         'severity' => REQUIREMENT_ERROR,
       ];
     }
