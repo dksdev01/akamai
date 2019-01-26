@@ -177,13 +177,7 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
    */
   public function createClientConfig(AkamaiAuthentication $auth = NULL) {
     $client_config = [];
-    // If we are in devel mode, use the mocked endpoint.
-    if ($this->configFactory->get('akamai.settings')->get('devel_mode') == TRUE) {
-      $client_config['base_uri'] = $this->configFactory->get('akamai.settings')->get('mock_endpoint');
-    }
-    else {
-      $client_config['base_uri'] = $this->configFactory->get('akamai.settings')->get('rest_api_url');
-    }
+    $client_config['base_uri'] = $this->configFactory->get('akamai.settings')->get('rest_api_url');
 
     if ($auth && $this->configFactory->get('akamai.settings')->get('storage_method') == 'file') {
       $client_config['base_uri'] = $auth->getHost();

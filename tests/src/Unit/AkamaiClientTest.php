@@ -35,7 +35,6 @@ class AkamaiClientTest extends UnitTestCase {
         'invalidate' => FALSE,
       ],
       'basepath' => 'http://example.com',
-      'mock_endpoint' => 'http://debug.com',
       'timeout' => 300,
     ];
     $logger = $this->prophesize(LoggerInterface::class)->reveal();
@@ -168,10 +167,6 @@ class AkamaiClientTest extends UnitTestCase {
     $akamai_client = $this->getClient($client_config);
     $this->assertEquals(['base_uri' => 'http://example.com', 'timeout' => 300], $akamai_client->createClientConfig());
 
-    $client_config = ['devel_mode' => TRUE];
-    $akamai_client = $this->getClient($client_config);
-    $this->assertEquals(['base_uri' => 'http://debug.com', 'timeout' => 300], $akamai_client->createClientConfig());
-
     $client_config = ['rest_api_url' => 'http://example.com'] + $this->getEdgeRcConfig();
     $config_factory = $this->getConfigFactoryStub(['akamai.settings' => $client_config]);
     $auth = AkamaiAuthentication::create($config_factory);
@@ -247,7 +242,6 @@ class AkamaiClientTest extends UnitTestCase {
         'invalidate' => FALSE,
       ],
       'basepath' => 'http://example.com',
-      'mock_endpoint' => 'http://debug.com',
       'timeout' => 300,
     ];
     $logger = $this->prophesize(LoggerInterface::class)->reveal();
@@ -321,7 +315,6 @@ class AkamaiClientTest extends UnitTestCase {
         'invalidate' => FALSE,
       ],
       'basepath' => 'http://example.com',
-      'mock_endpoint' => 'http://debug.com',
       'timeout' => 300,
     ];
     $logger = $this->prophesize(LoggerInterface::class)->reveal();

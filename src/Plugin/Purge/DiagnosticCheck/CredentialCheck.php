@@ -64,11 +64,6 @@ class CredentialCheck extends DiagnosticCheckBase {
       return self::SEVERITY_INFO;
     }
 
-    if ($this->config->get('devel_mode') == TRUE) {
-      $this->recommendation = $this->t('Running in development mode, no credentials required.');
-      return self::SEVERITY_OK;
-    }
-
     // @todo Getting this globally feels gross. Is there a better way?
     if (\Drupal::state()->get('akamai.valid_credentials') == FALSE) {
       $this->recommendation = $this->t("Invalid API credentials.");

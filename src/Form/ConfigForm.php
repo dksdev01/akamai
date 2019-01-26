@@ -283,26 +283,11 @@ class ConfigForm extends ConfigFormBase {
       '#description' => $this->t('Killswitch - disable Akamai cache clearing entirely.'),
     ];
 
-    $form['devel_fieldset']['devel_mode'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Use development mode'),
-      '#default_value' => $config->get('devel_mode'),
-      '#description' => $this->t('Use a Mock API instead of a live one.'),
-    ];
-
     $form['devel_fieldset']['log_requests'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Log requests'),
       '#default_value' => $config->get('log_requests'),
       '#description' => $this->t('Log all requests and responses.'),
-    ];
-
-    $form['devel_fieldset']['mock_endpoint'] = [
-      '#type' => 'url',
-      '#size' => 100,
-      '#title' => $this->t('Mock endpoint URI'),
-      '#default_value' => $config->get('mock_endpoint'),
-      '#description' => $this->t('Mock endpoint used in development mode'),
     ];
 
     return parent::buildForm($form, $form_state);
@@ -349,8 +334,6 @@ class ConfigForm extends ConfigFormBase {
       ->set('timeout', $values['timeout'])
       ->set('status_expire', $values['status_expire'])
       ->set('domain', $this->saveDomain($values['domain']))
-      ->set('devel_mode', $values['devel_mode'])
-      ->set('mock_endpoint', $values['mock_endpoint'])
       ->set('log_requests', $values['log_requests'])
       ->set('edge_cache_tag_header', $values['edge_cache_tag_header'])
       ->set('edge_cache_tag_header_blacklist', $blacklist)
@@ -364,7 +347,29 @@ class ConfigForm extends ConfigFormBase {
 
     parent::submitForm($form, $form_state);
 
-    $this->checkCredentials();
+    // If any default settings were provided, we dont want to check credentials.
+    // This prevents the test runners from trying to hit akamai's servers.
+    $defaults = [
+      'rest_api_url' => 'https://xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx.luna.akamaiapis.net/',
+      'client_token' => 'xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx',
+      'client_secret' => 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      'access_token' => 'xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx',
+    ];
+
+    $uses_defaults = FALSE;
+    foreach ($defaults as $key => $value) {
+      if ($values[$key] == $value) {
+        $uses_defaults = TRUE;
+        break;
+      }
+    }
+    if (!$uses_defaults) {
+      $this->checkCredentials();
+    }
+    else {
+      \Drupal::service('messenger')->addWarning($this->t('You need to provide non-default credentials for this module to work.'));
+    }
+
     drupal_set_message($this->t('Settings saved.'));
   }
 

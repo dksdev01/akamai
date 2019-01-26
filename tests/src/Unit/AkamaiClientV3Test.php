@@ -34,7 +34,6 @@ class AkamaiClientV3Test extends UnitTestCase {
         'invalidate' => FALSE,
       ],
       'basepath' => 'http://example.com',
-      'mock_endpoint' => 'http://debug.com',
       'timeout' => 300,
       'purge_urls_with_hostname' => FALSE,
     ];

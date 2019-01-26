@@ -49,11 +49,8 @@ class AkamaiConfigFormTest extends WebTestBase {
     $edit['domain'] = 'staging';
     $edit['ccu_version'] = 'v2';
     $edit['v2[action]'] = 'invalidate';
-    $edit['devel_mode'] = 1;
-    $edit['mock_endpoint'] = 'https://akamaiopen2purgeccuproduction.docs.apiary.io';
 
     $this->drupalPostForm('admin/config/akamai/config', $edit, t('Save configuration'));
-    $this->assertText(t('Authenticated to Akamai.'), t('Authenticated to Akamai.'));
 
     // Tests that we can't save non-integer status expire periods.
     $edit['status_expire'] = 'lol';

@@ -72,12 +72,6 @@ akamai.settings:
           type: boolean
           label: 'Invalidate'
           description: 'Marks the cached content as invalid. The next time a server receives a request for the content, it sends an HTTP conditional GET (If-Modified-Since) request to the origin. If the content has changed, the origin server returns a full fresh copy. Otherwise, the origin normally responds that the content has not changed, and the Edge server can serve the already-cached content.'
-    devel_mode:
-      type: boolean
-      label: 'Use the mock endpoint instead of the real one (for development/testing).'
-    mock_endpoint:
-      type: string
-      label: 'Mock endpoint URL (for devel mode).'
     log_requests:
       type: boolean
       label: 'Log all requests and responses to the Akamai log channel.'

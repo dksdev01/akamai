@@ -13,17 +13,6 @@ use Drupal\Tests\UnitTestCase;
 class AkamaiAuthenticationTest extends UnitTestCase {
 
   /**
-   * Tests that we can authorise as in debug mode.
-   *
-   * @covers ::create
-   */
-  public function testSetDebugMode() {
-    $config = $this->getDevelConfig();
-    $auth = AkamaiAuthentication::create($this->getConfigFactoryStub(['akamai.settings' => $config]));
-    $this->assertEquals($auth->getHost(), $config['mock_endpoint']);
-  }
-
-  /**
    * Tests that we can authorise when specifying authentication keys.
    *
    * @covers ::create
@@ -54,19 +43,6 @@ class AkamaiAuthenticationTest extends UnitTestCase {
     ];
     $this->assertEquals($expected, $auth->getAuth());
     $this->assertEquals(get_class($auth), 'Drupal\akamai\AkamaiAuthentication');
-  }
-
-  /**
-   * Returns config for development mode.
-   *
-   * @return array
-   *   An array of config values.
-   */
-  protected function getDevelConfig() {
-    return [
-      'devel_mode' => TRUE,
-      'mock_endpoint' => 'example.com',
-    ];
   }
 
   /**
