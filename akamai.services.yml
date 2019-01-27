@@ -13,6 +13,9 @@ services:
   akamai.status_storage:
     class: Drupal\akamai\StatusStorage
     arguments: ['@config.factory', '@logger.channel.akamai']
+  akamai.key_provider:
+    class: Drupal\akamai\KeyProvider
+    arguments: ['@?key.repository']
   logger.channel.akamai:
     class: Drupal\Core\Logger\LoggerChannel
     factory: logger.factory:get

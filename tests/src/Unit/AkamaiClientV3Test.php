@@ -2,6 +2,8 @@
 
 namespace Drupal\Tests\akamai\Unit;
 
+use Drupal\akamai\KeyProviderInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Tests\UnitTestCase;
 use Psr\Log\LoggerInterface;
 
@@ -65,6 +67,8 @@ class AkamaiClientV3Test extends UnitTestCase {
         $this->getConfigFactoryStub(['akamai.settings' => $config]),
         $logger,
         $status_storage,
+        $this->prophesize(MessengerInterface::class)->reveal(),
+        $this->prophesize(KeyProviderInterface::class)->reveal(),
       ])
       ->setMethods(['getQueueLength', 'purgeRequest'])
       ->getMock();

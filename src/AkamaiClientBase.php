@@ -6,6 +6,7 @@ use Drupal\Component\Serialization\Json;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Plugin\PluginBase;
 use Akamai\Open\EdgeGrid\Client as EdgeGridClient;
 use GuzzleHttp\Exception\RequestException;
@@ -114,8 +115,12 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
    *   A logger instance.
    * @param \Drupal\akamai\StatusStorage $status_storage
    *   A status logger for tracking purge responses.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   A messenger service.
+   * @param \Drupal\akamai\KeyProviderInterface $key_provider
+   *   A key provider service.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, EdgeGridClient $client, ConfigFactoryInterface $config_factory, LoggerInterface $logger, StatusStorage $status_storage) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, EdgeGridClient $client, ConfigFactoryInterface $config_factory, LoggerInterface $logger, StatusStorage $status_storage, MessengerInterface $messenger, KeyProviderInterface $key_provider) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->logger = $logger;
     $this->configFactory = $config_factory;
@@ -133,7 +138,7 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
       ->setLogRequests($this->configFactory->get('akamai.settings')->get('log_requests'));
 
     // Create an authentication object so we can sign requests.
-    $auth = AkamaiAuthentication::create($config_factory);
+    $auth = AkamaiAuthentication::create($config_factory, $messenger, $key_provider);
 
     $this->akamaiClientConfig = $this->createClientConfig($auth);
 
@@ -155,7 +160,9 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
       $container->get('akamai.edgegridclient'),
       $container->get('config.factory'),
       $container->get('logger.channel.akamai'),
-      $container->get('akamai.status_storage')
+      $container->get('akamai.status_storage'),
+      $container->get('messenger'),
+      $container->get('akamai.key_provider')
     );
   }
 

@@ -7,5 +7,6 @@ configure: akamai.config_form
 recommends:
   - purge
   - purge_queuer_url
+  - key
 dependencies:
   - drupal:system (>=8.5)

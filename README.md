@@ -54,6 +54,25 @@ https://developer.akamai.com/introduction/Prov_Creds.html
 
 You will need admin access to the Luna control panel to create credentials.
 
+### Using an .edgerc File
+
+You can store an `.edgerc` file on the server and reference the path in
+/admin/config/akamai/settings. It should match this format:
+```
+[default]
+host = akaa-baseurl-xxxxxxxxxxx-xxxxxxxxxxxxx.luna.akamaiapis.net/
+access_token = akab-access-token-xxx-xxxxxxxxxxxxxxxx
+client_token = akab-client-token-xxx-xxxxxxxxxxxxxxxx
+client_secret = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=
+max-size = 2048
+```
+
+### Using the Key Module
+
+Alternatively, you can use the key module to set API credentials. Create
+Authentication keys at /admin/config/system/keys. Then go to
+/admin/config/akamai/settings and specify the corresponding key for your
+access token, client token, and client secret.
 
 ## Usage
 

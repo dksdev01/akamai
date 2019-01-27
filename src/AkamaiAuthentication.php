@@ -3,6 +3,7 @@
 namespace Drupal\akamai;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Akamai\Open\EdgeGrid\Authentication;
 use Akamai\Open\EdgeGrid\Authentication\Exception\ConfigException;
 
@@ -21,33 +22,52 @@ class AkamaiAuthentication extends Authentication {
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config
    *   A config factory, for getting client authentication details.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   A messenger service.
+   * @param \Drupal\akamai\KeyProviderInterface $key_provider
+   *   A akamai.key_provider service.
    *
    * @return \Drupal\akamai\AkamaiAuthentication
    *   An authentication object.
    */
-  public static function create(ConfigFactoryInterface $config) {
+  public static function create(ConfigFactoryInterface $config, MessengerInterface $messenger, KeyProviderInterface $key_provider) {
     // Following the pattern in the superclass.
     $auth = new static();
     $config = $config->get('akamai.settings');
-    if ($config->get('storage_method') == 'file') {
+    $storage_method = $config->get('storage_method');
+    if ($storage_method == 'file') {
       $section = $config->get('edgerc_section') ?: 'default';
       $path = $config->get('edgerc_path') ?: NULL;
       try {
         $auth = static::createFromEdgeRcFile($section, $path);
       }
       catch (ConfigException $e) {
-        \Drupal::messenger()->addWarning($e->getMessage());
+        $messenger->addWarning($e->getMessage());
       }
     }
-    else {
-      $auth->setHost($config->get('rest_api_url'));
-      // Set the auth credentials up.
-      // @see Authentication::createFromEdgeRcFile()
-      $auth->setAuth(
-        $config->get('client_token'),
-        $config->get('client_secret'),
-        $config->get('access_token')
-      );
+    elseif ($storage_method == 'key' && $key_provider->hasKeyRepository()) {
+      $keys = ['access_token', 'client_token', 'client_secret'];
+      $key_values = [];
+      $missing_values = FALSE;
+      foreach ($keys as $key) {
+        $key_values[$key] = $key_provider->getKey($key);
+
+        if (!isset($key_values[$key])) {
+          $messenger->addWarning(t('Missing @key.', ['@key' => $key]));
+          $missing_values = TRUE;
+        }
+      }
+
+      if (!$missing_values) {
+        $auth->setHost($config->get('rest_api_url'));
+        // Set the auth credentials up.
+        // @see Authentication::createFromEdgeRcFile()
+        $auth->setAuth(
+          $key_values['client_token'],
+          $key_values['client_secret'],
+          $key_values['access_token']
+        );
+      }
     }
 
     return $auth;

@@ -11,6 +11,9 @@
     "akamai-open/edgegrid-client": "~1.0.0",
     "drupal/core": "~8.5"
   },
+  "require-dev": {
+    "drupal/key": "~1.8"
+  },
   "extra": {
     "drush": {
       "services": {

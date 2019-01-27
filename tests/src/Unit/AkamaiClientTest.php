@@ -2,9 +2,11 @@
 
 namespace Drupal\Tests\akamai\Unit;
 
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Tests\UnitTestCase;
 use Psr\Log\LoggerInterface;
 use Drupal\akamai\AkamaiAuthentication;
+use Drupal\akamai\KeyProviderInterface;
 
 /**
  * @coversDefaultClass \Drupal\akamai\Plugin\Client\AkamaiClientV2
@@ -65,6 +67,8 @@ class AkamaiClientTest extends UnitTestCase {
         $this->getConfigFactoryStub(['akamai.settings' => $config]),
         $logger,
         $status_storage,
+        $this->prophesize(MessengerInterface::class)->reveal(),
+        $this->prophesize(KeyProviderInterface::class)->reveal(),
       ])
       ->setMethods(['getQueueLength', 'purgeRequest'])
       ->getMock();
@@ -169,7 +173,11 @@ class AkamaiClientTest extends UnitTestCase {
 
     $client_config = ['rest_api_url' => 'http://example.com'] + $this->getEdgeRcConfig();
     $config_factory = $this->getConfigFactoryStub(['akamai.settings' => $client_config]);
-    $auth = AkamaiAuthentication::create($config_factory);
+    $auth = AkamaiAuthentication::create(
+      $config_factory,
+      $this->prophesize(MessengerInterface::class)->reveal(),
+      $this->prophesize(KeyProviderInterface::class)->reveal()
+    );
     $akamai_client = $this->getClient($client_config);
     $this->assertEquals(['base_uri' => 'edgerc-test.com', 'timeout' => 300], $akamai_client->createClientConfig($auth));
   }
@@ -285,6 +293,8 @@ class AkamaiClientTest extends UnitTestCase {
         $this->getConfigFactoryStub(['akamai.settings' => $config]),
         $logger,
         $status_storage,
+        $this->prophesize(MessengerInterface::class)->reveal(),
+        $this->prophesize(KeyProviderInterface::class)->reveal(),
       ])
       ->setMethods(NULL)
       ->getMock();
@@ -356,6 +366,8 @@ class AkamaiClientTest extends UnitTestCase {
         $this->getConfigFactoryStub(['akamai.settings' => $config]),
         $logger,
         $status_storage,
+        $this->prophesize(MessengerInterface::class)->reveal(),
+        $this->prophesize(KeyProviderInterface::class)->reveal(),
       ])
       ->setMethods(NULL)
       ->getMock();

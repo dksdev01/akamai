@@ -3,7 +3,9 @@
 namespace Drupal\akamai\Form;
 
 use Drupal\akamai\AkamaiClientManager;
+use Drupal\akamai\KeyProviderInterface;
 use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Messenger\MessengerInterface;
@@ -41,13 +43,19 @@ class ConfigForm extends ConfigFormBase {
    *   The Akamai Client plugin manager.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   The Drupal messenger service.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+   *   The module handler service.
+   * @param \Drupal\akamai\KeyProviderInterface $key_provider
+   *   The key provider service.
    */
-  public function __construct(ConfigFactory $configFactory, RequestStack $request_stack, AkamaiClientManager $manager, MessengerInterface $messenger) {
+  public function __construct(ConfigFactory $configFactory, RequestStack $request_stack, AkamaiClientManager $manager, MessengerInterface $messenger, ModuleHandlerInterface $module_handler, KeyProviderInterface $key_provider) {
     $this->requestStack = $request_stack;
+    $this->keyProvider = $key_provider;
+    $this->messenger = $messenger;
+    $this->moduleHandler = $module_handler;
     foreach ($manager->getAvailableVersions() as $id => $definition) {
       $this->availableVersions[$id] = $manager->createInstance($id);
     }
-    $this->messenger = $messenger;
     parent::__construct($configFactory);
   }
 
@@ -59,7 +67,9 @@ class ConfigForm extends ConfigFormBase {
       $container->get('config.factory'),
       $container->get('request_stack'),
       $container->get('akamai.client.manager'),
-      $container->get('messenger')
+      $container->get('messenger'),
+      $container->get('module_handler'),
+      $container->get('akamai.key_provider')
     );
   }
 
@@ -106,24 +116,28 @@ class ConfigForm extends ConfigFormBase {
       '#description' => $this->t('API Credentials for Akamai. Someone with Luna access will need to set this up. See @link for more.', ['@link' => $this->l($luna_url, $luna_uri)]),
     ];
 
+    $options = [
+      'file' => $this->t('.edgerc file'),
+    ];
+    if ($this->moduleHandler->moduleExists('key')) {
+      $options['key'] = $this->t('Key module');
+    }
+
     $form['akamai_credentials_fieldset']['storage_method'] = [
       '#type' => 'radios',
       '#title' => $this->t('Credential storage method'),
-      '#default_value' => $config->get('storage_method') ?: 'database',
-      '#options' => [
-        'database' => $this->t('Database'),
-        'file' => $this->t('.edgerc file'),
-      ],
+      '#default_value' => $config->get('storage_method') ?: 'file',
+      '#options' => $options,
       '#required' => TRUE,
-      '#description' => $this->t('Credentials may be stored in the database or in a file. See the README file for more information.'),
+      '#description' => $this->t('Credentials may be stored in an .edgerc file or using the Key module (if installed). See the README file for more information.'),
     ];
 
-    $database_field_states = [
+    $key_field_states = [
       'required' => [
-        ':input[name="storage_method"]' => ['value' => 'database'],
+        ':input[name="storage_method"]' => ['value' => 'key'],
       ],
       'visible' => [
-        ':input[name="storage_method"]' => ['value' => 'database'],
+        ':input[name="storage_method"]' => ['value' => 'key'],
       ],
       'optional' => [
         ':input[name="storage_method"]' => ['value' => 'file'],
@@ -140,10 +154,10 @@ class ConfigForm extends ConfigFormBase {
         ':input[name="storage_method"]' => ['value' => 'file'],
       ],
       'optional' => [
-        ':input[name="storage_method"]' => ['value' => 'database'],
+        ':input[name="storage_method"]' => ['value' => 'key'],
       ],
       'invisible' => [
-        ':input[name="storage_method"]' => ['value' => 'database'],
+        ':input[name="storage_method"]' => ['value' => 'key'],
       ],
     ];
 
@@ -152,31 +166,42 @@ class ConfigForm extends ConfigFormBase {
       '#title' => $this->t('REST API URL'),
       '#description'   => $this->t('The URL of the Akamai CCU API host. It should be in the format *.purge.akamaiapis.net/'),
       '#default_value' => $config->get('rest_api_url'),
-      '#states' => $database_field_states,
+      '#states' => $key_field_states,
     ];
 
+    $keys = [];
+    if ($this->keyProvider->hasKeyRepository()) {
+      foreach ($this->keyProvider->getKeys() as $key) {
+        $keys[$key->id()] = $key->label();
+      }
+    }
+    sort($keys);
+
     $form['akamai_credentials_fieldset']['access_token'] = [
-      '#type' => 'textfield',
+      '#type' => 'select',
       '#title' => $this->t('Access Token'),
       '#description'   => $this->t('Access token.'),
+      '#options' => $keys,
       '#default_value' => $config->get('access_token'),
-      '#states' => $database_field_states,
+      '#states' => $key_field_states,
     ];
 
     $form['akamai_credentials_fieldset']['client_token'] = [
-      '#type' => 'textfield',
+      '#type' => 'select',
       '#title' => $this->t('Client Token'),
       '#description'   => $this->t('Client token.'),
+      '#options' => $keys,
       '#default_value' => $config->get('client_token'),
-      '#states' => $database_field_states,
+      '#states' => $key_field_states,
     ];
 
     $form['akamai_credentials_fieldset']['client_secret'] = [
-      '#type' => 'textfield',
+      '#type' => 'select',
       '#title' => $this->t('Client Secret'),
       '#description'   => $this->t('Client secret.'),
+      '#options' => $keys,
       '#default_value' => $config->get('client_secret'),
-      '#states' => $database_field_states,
+      '#states' => $key_field_states,
     ];
 
     $form['akamai_credentials_fieldset']['edgerc_path'] = [
@@ -359,23 +384,7 @@ class ConfigForm extends ConfigFormBase {
 
     parent::submitForm($form, $form_state);
 
-    // If any default settings were provided, we dont want to check credentials.
-    // This prevents the test runners from trying to hit akamai's servers.
-    $defaults = [
-      'rest_api_url' => 'https://xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx.luna.akamaiapis.net/',
-      'client_token' => 'xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx',
-      'client_secret' => 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-      'access_token' => 'xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx',
-    ];
-
-    $uses_defaults = FALSE;
-    foreach ($defaults as $key => $value) {
-      if ($values[$key] == $value) {
-        $uses_defaults = TRUE;
-        break;
-      }
-    }
-    if (!$uses_defaults) {
+    if ($values['rest_api_url'] !== 'https://xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx.luna.akamaiapis.net/') {
       $this->checkCredentials();
     }
     else {
