@@ -12,7 +12,8 @@
     "drupal/core": "~8.5"
   },
   "require-dev": {
-    "drupal/key": "~1.8"
+    "drupal/key": "~1.8",
+    "drupal/purge": "3.0-beta8"
   },
   "extra": {
     "drush": {

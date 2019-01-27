@@ -2,9 +2,11 @@
 
 namespace Drupal\akamai\Plugin\Purge\Purger;
 
+use Drupal\akamai\Event\AkamaiPurgeEvents;
 use Drupal\purge\Plugin\Purge\Purger\PurgerBase;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Drupal\purge\Plugin\Purge\Invalidation\InvalidationInterface;
 
 /**
@@ -36,6 +38,13 @@ class AkamaiTagPurger extends PurgerBase {
   protected $akamaiClientConfig;
 
   /**
+   * The event dispatcher.
+   *
+   * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
+   */
+  protected $eventDispatcher;
+
+  /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
@@ -43,7 +52,8 @@ class AkamaiTagPurger extends PurgerBase {
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('config.factory')
+      $container->get('config.factory'),
+      $container->get('event_dispatcher')
     );
   }
 
@@ -58,11 +68,14 @@ class AkamaiTagPurger extends PurgerBase {
    *   The plugin implementation definition.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config
    *   The factory for configuration objects.
+   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
+   *   The event dispatcher.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config, EventDispatcherInterface $event_dispatcher) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->client = \Drupal::service('akamai.client.factory')->get();
     $this->akamaiClientConfig = $config->get('akamai.settings');
+    $this->eventDispatcher = $event_dispatcher;
   }
 
   /**
@@ -90,6 +103,12 @@ class AkamaiTagPurger extends PurgerBase {
     $tags_to_clear = array_keys(array_flip($tags_to_clear));
     // Set invalidation type to tag.
     $this->client->setType('tag');
+
+    // Instantiate event and alter tags with subscribers.
+    $event = new AkamaiPurgeEvents($tags_to_clear);
+    $this->eventDispatcher->dispatch(AkamaiPurgeEvents::PURGE_CREATION, $event);
+    $tags_to_clear = $event->data;
+
     // Purge tags.
     $invalidation_state = InvalidationInterface::SUCCEEDED;
     $result = $this->client->purgeTags($tags_to_clear);

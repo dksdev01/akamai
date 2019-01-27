@@ -1,17 +1,17 @@
 <?php
 
-namespace Drupal\Tests\akamai\Kernel;
+namespace Drupal\Tests\akamai\Kernel\EventSubscriber;
 
 use Drupal\KernelTests\KernelTestBase;
 use Symfony\Component\HttpFoundation\Request;
 use Drupal\akamai\Event\AkamaiHeaderEvents;
 
 /**
- * Tests Edge-Cache-Tag Header.
+ * Tests CacheableResponseSubscriber.
  *
  * @group Akamai
  */
-class EdgeCacheTagHeaderTest extends KernelTestBase {
+class CacheableResponseSubscriberTest extends KernelTestBase {
 
   /**
    * Modules to enable.
@@ -59,14 +59,14 @@ class EdgeCacheTagHeaderTest extends KernelTestBase {
     $this->assertEqual($response->headers->get('Edge-Cache-Tag'), 'http_response,rendered');
 
     // Setup the mock event subscriber.
-    $subscriber = new MockHeaderSubscriber();
+    $subscriber = new MockSubscriber();
     $event_dispatcher = \Drupal::getContainer()->get('event_dispatcher');
     $event_dispatcher->addListener(AkamaiHeaderEvents::HEADER_CREATION, [$subscriber, 'onHeaderCreation']);
 
     $response = $kernel->handle($request);
     $this->assertEqual(200, $response->getStatusCode());
     $this->assertEqual($response->headers->has('Edge-Cache-Tag'), TRUE);
-    $this->assertEqual($response->headers->get('Edge-Cache-Tag'), 'http_response,rendered,helloworld');
+    $this->assertEqual($response->headers->get('Edge-Cache-Tag'), 'http_response,rendered,on_header_creation');
   }
 
 }

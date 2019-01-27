@@ -2,9 +2,11 @@
 
 namespace Drupal\akamai\EventSubscriber;
 
+use Drupal\akamai\Event\AkamaiHeaderEvents;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Drupal\Core\Cache\CacheableResponseInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\akamai\Helper\CacheTagFormatter;
@@ -29,16 +31,26 @@ class CacheableResponseSubscriber implements EventSubscriberInterface {
   protected $tagFormatter;
 
   /**
+   * The event dispatcher.
+   *
+   * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
+   */
+  protected $eventDispatcher;
+
+  /**
    * Constructs a new CacheableResponseSubscriber.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The configuration factory.
    * @param \Drupal\akamai\Helper\CacheTagFormatter $formatter
    *   The cache tag formatter.
+   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
+   *   The event dispatcher.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, CacheTagFormatter $formatter) {
+  public function __construct(ConfigFactoryInterface $config_factory, CacheTagFormatter $formatter, EventDispatcherInterface $event_dispatcher) {
     $this->configFactory = $config_factory;
     $this->tagFormatter = $formatter;
+    $this->eventDispatcher = $event_dispatcher;
   }
 
   /**
@@ -77,6 +89,11 @@ class CacheableResponseSubscriber implements EventSubscriberInterface {
         }
         return TRUE;
       });
+
+      // Instantiate our event.
+      $event = new AkamaiHeaderEvents($tags);
+      $this->eventDispatcher->dispatch(AkamaiHeaderEvents::HEADER_CREATION, $event);
+      $tags = $event->data;
       foreach ($tags as &$tag) {
         $tag = $this->tagFormatter->format($tag);
       }
