@@ -4,6 +4,7 @@ namespace Drupal\akamai\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Datetime\DateFormatter;
+use Drupal\Core\Messenger\MessengerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\akamai\PurgeStatus;
 use Drupal\akamai\StatusStorage;
@@ -30,12 +31,20 @@ class StatusLogController extends ControllerBase {
   protected $dateFormatter;
 
   /**
+   * Messenger service.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('akamai.status_storage'),
-      $container->get('date.formatter')
+      $container->get('date.formatter'),
+      $container->get('messenger')
     );
   }
 
@@ -46,10 +55,13 @@ class StatusLogController extends ControllerBase {
    *   A status storage service, so we can reference statuses.
    * @param \Drupal\Core\Datetime\DateFormatter $date_formatter
    *   A date formatter service.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   A messenger service.
    */
-  public function __construct(StatusStorage $status_storage, DateFormatter $date_formatter) {
+  public function __construct(StatusStorage $status_storage, DateFormatter $date_formatter, MessengerInterface $messenger) {
     $this->statusStorage = $status_storage;
     $this->dateFormatter = $date_formatter;
+    $this->messenger = $messenger;
   }
 
   /**
@@ -86,7 +98,11 @@ class StatusLogController extends ControllerBase {
       '#sticky' => TRUE,
     ];
 
-    if ($client->usesQueue()) {
+    if (!$client->isAuthorized()) {
+      $settings_link = $this->l(t('Akamai Settings'), Url::fromRoute('akamai.settings'));
+      $this->messenger->addWarning($this->t('Missing valid authentication credentials. See @akamai_settings for more information.', ['@akamai_settings' => $settings_link]));
+    }
+    elseif ($client->usesQueue()) {
       $build[] = [
         '#markup' => $this->t('Items remaining in Akamai purge queue: %length', ['%length' => $client->getQueueLength()]),
       ];
