@@ -50,7 +50,7 @@ class AkamaiAuthentication extends Authentication {
       $key_values = [];
       $missing_values = FALSE;
       foreach ($keys as $key) {
-        $key_values[$key] = $key_provider->getKey($key);
+        $key_values[$key] = $key_provider->getKey($config->get($key));
 
         if (!isset($key_values[$key])) {
           $messenger->addWarning(t('Missing @key.', ['@key' => $key]));

@@ -175,7 +175,7 @@ class ConfigForm extends ConfigFormBase {
         $keys[$key->id()] = $key->label();
       }
     }
-    sort($keys);
+    asort($keys);
 
     $form['akamai_credentials_fieldset']['access_token'] = [
       '#type' => 'select',
