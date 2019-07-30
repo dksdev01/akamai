@@ -76,7 +76,7 @@ class StatusLogController extends ControllerBase {
 
     $statuses = $this->statusStorage->getResponseStatuses();
     $rows = [];
-    if (count($statuses)) {
+    if (!empty($statuses)) {
       foreach ($statuses as $status) {
         // Get the most recent request sent regarding this purge.
         $status = new PurgeStatus($status);
