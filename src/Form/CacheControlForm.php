@@ -7,6 +7,7 @@ use Drupal\Component\Utility\Unicode;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Link;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -82,7 +83,7 @@ class CacheControlForm extends FormBase {
     }
 
     $settings_link = Url::fromRoute('akamai.settings');
-    $settings_link = $this->l($settings_link->getInternalPath(), $settings_link);
+    $settings_link = Link::fromTextAndUrl($settings_link->getInternalPath(), $settings_link)->toString();
     $paths_description = $this->t(
       'Enter one URL or CPCode per line. URL entries should be relative to the basepath
       (e.g. node/1, content/pretty-title, sites/default/files/some/image.png).

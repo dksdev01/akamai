@@ -8,6 +8,7 @@ use Drupal\Core\Config\ConfigFactory;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Link;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -113,7 +114,7 @@ class ConfigForm extends ConfigFormBase {
     $form['akamai_credentials_fieldset'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Akamai CCU Credentials'),
-      '#description' => $this->t('API Credentials for Akamai. Someone with Luna access will need to set this up. See @link for more.', ['@link' => $this->l($luna_url, $luna_uri)]),
+      '#description' => $this->t('API Credentials for Akamai. Someone with Luna access will need to set this up. See @link for more.', ['@link' => Link::fromTextAndUrl($luna_url, $luna_uri)->toString()]),
     ];
 
     $options = [

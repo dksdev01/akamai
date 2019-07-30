@@ -4,12 +4,13 @@ namespace Drupal\akamai\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Datetime\DateFormatter;
+use Drupal\Core\Link;
 use Drupal\Core\Messenger\MessengerInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\akamai\PurgeStatus;
-use Drupal\akamai\StatusStorage;
 use Drupal\Core\Url;
 use Drupal\Component\Serialization\Json;
+use Drupal\akamai\PurgeStatus;
+use Drupal\akamai\StatusStorage;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides route callback utilities to browse and administer Akamai purges.
@@ -99,7 +100,7 @@ class StatusLogController extends ControllerBase {
     ];
 
     if (!$client->isAuthorized()) {
-      $settings_link = $this->l(t('Akamai Settings'), Url::fromRoute('akamai.settings'));
+      $settings_link = Link::fromTextAndUrl($this->t('Akamai Settings'), Url::fromRoute('akamai.settings'))->toString();
       $this->messenger->addWarning($this->t('Missing valid authentication credentials. See @akamai_settings for more information.', ['@akamai_settings' => $settings_link]));
     }
     elseif ($client->usesQueue()) {
@@ -125,7 +126,7 @@ class StatusLogController extends ControllerBase {
 
     $row[] = $this->dateFormatter->format($status->getLastCheckedTime(), 'html_datetime');
     $row[] = implode($status->getUrls(), ', ');
-    $row[] = $this->l($status->getPurgeId(), $url);
+    $row[] = Link::fromTextAndUrl($status->getPurgeId(), $url)->toString();
     $row[] = $status->getSupportId();
     $row[] = $status->getDescription();
 
@@ -160,7 +161,7 @@ class StatusLogController extends ControllerBase {
    */
   public function checkPurgeAction($purge_id) {
     // @todo convert to breadcrumb
-    $build[]['#markup'] = '<p>' . $this->l($this->t('Back to list'), Url::fromRoute('akamai.statuslog_list')) . '</p>';
+    $build[]['#markup'] = '<p>' . Link::fromTextAndUrl($this->t('Back to list'), Url::fromRoute('akamai.statuslog_list'))->toString() . '</p>';
 
     // @todo inject
     $client = \Drupal::service('akamai.client.factory')->get();
