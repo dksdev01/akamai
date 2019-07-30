@@ -2,6 +2,7 @@
 
 namespace Drupal\akamai\Plugin\Purge\Purger;
 
+use Drupal\akamai\AkamaiClientFactory;
 use Drupal\akamai\Event\AkamaiPurgeEvents;
 use Drupal\purge\Plugin\Purge\Purger\PurgerBase;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -53,7 +54,8 @@ class AkamaiPurger extends PurgerBase {
       $plugin_id,
       $plugin_definition,
       $container->get('config.factory'),
-      $container->get('event_dispatcher')
+      $container->get('event_dispatcher'),
+      $container->get('akamai.client.factory')
     );
   }
 
@@ -70,10 +72,12 @@ class AkamaiPurger extends PurgerBase {
    *   The factory for configuration objects.
    * @param Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
    *   The event dispatcher.
+   * @param \Drupal\akamai\AkamaiClientFactory $akamai_client_factory
+   *   The akamai client factory.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config, EventDispatcherInterface $event_dispatcher) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config, EventDispatcherInterface $event_dispatcher, AkamaiClientFactory $akamai_client_factory) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->client = \Drupal::service('akamai.client.factory')->get();
+    $this->client = $akamai_client_factory->get();
     $this->akamaiClientConfig = $config->get('akamai.settings');
     $this->eventDispatcher = $event_dispatcher;
   }
@@ -82,9 +86,15 @@ class AkamaiPurger extends PurgerBase {
    * {@inheritdoc}
    */
   public function getTimeHint() {
+    $timeout = (float) $this->akamaiClientConfig->get('timeout');
     // The max value for getTimeHint is 10.00.
-    $return = $this->akamaiClientConfig->get('timeout') <= 10 ?: 10;
-    return (float) $return;
+    if ($timeout > 10) {
+      return 10;
+    }
+    elseif ($timeout > 0) {
+      return $timeout;
+    }
+    return 0;
   }
 
   /**
