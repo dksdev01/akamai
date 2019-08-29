@@ -5,8 +5,8 @@ core: 8.x
 package: Other
 configure: akamai.config_form
 recommends:
-  - purge
-  - purge_queuer_url
-  - key
+  - purge:purge
+  - purge_queuer_url:purge_queuer_url
+  - key:key
 dependencies:
   - drupal:system (>=8.5)
