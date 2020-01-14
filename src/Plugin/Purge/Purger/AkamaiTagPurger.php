@@ -107,10 +107,12 @@ class AkamaiTagPurger extends PurgerBase {
     $formatter = \Drupal::service('akamai.helper.cachetagformatter');
     foreach ($invalidations as $invalidation) {
       $invalidation->setState(InvalidationInterface::PROCESSING);
-      $tags_to_clear[] = $formatter->format($invalidation->getExpression());
+      $tag = $formatter->format($invalidation->getExpression());
+      // Remove duplicate entries.
+      $tags_to_clear[$tag] = $tag;
     }
-    // Remove duplicate entries.
-    $tags_to_clear = array_keys(array_flip($tags_to_clear));
+    // Change it to a normal array so the JSON conversion goes as expected.
+    $tags_to_clear = array_values($tags_to_clear);
     // Set invalidation type to tag.
     $this->client->setType('tag');
 

@@ -5,6 +5,7 @@ namespace Drupal\Tests\akamai\Unit\Plugin\Purge\Purger;
 use Drupal\Tests\UnitTestCase;
 use Drupal\Tests\akamai\Kernel\EventSubscriber\MockSubscriber;
 use Drupal\akamai\Event\AkamaiPurgeEvents;
+use Drupal\akamai\Helper\CacheTagFormatter;
 use Drupal\akamai\Plugin\Purge\Purger\AkamaiTagPurger;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -20,22 +21,16 @@ class AkamaiTagPurgerTest extends UnitTestCase {
    * Tests purge creation event dispatch.
    */
   public function testPurgeCreationEvent() {
-
     $purger = $this->getMockBuilder('Drupal\akamai\Plugin\Purge\Purger\AkamaiTagPurger')
       ->disableOriginalConstructor()
       ->setMethods(NULL)
       ->getMock();
 
+    $formatter = new CacheTagFormatter();
+
     $container = new ContainerBuilder();
-
-    $formatter = $this->getMockBuilder('Drupal\akamai\Helper\CacheTagFormatter')->getMock();
-    $formatter->method('format')
-      ->willReturn('foo');
-
     $container->set('akamai.helper.cachetagformatter', $formatter);
     \Drupal::setContainer($container);
-
-    $formatter = $this->getMockBuilder('Drupal\akamai\Helper\CacheTagFormatter')->getMock();
 
     $client = $this->getMockBuilder('Drupal\akamai\Plugin\Client\AkamaiClientV3')
       ->disableOriginalConstructor()
@@ -57,15 +52,74 @@ class AkamaiTagPurgerTest extends UnitTestCase {
     $reflection_property->setValue($purger, $event_dispatcher);
 
     // Create stub for response class.
-    $invalidation = $this->getMockBuilder('Drupal\purge\Plugin\Purge\Invalidation\TagInvalidation')
+    $invalidation_1 = $this->getMockBuilder('Drupal\purge\Plugin\Purge\Invalidation\TagInvalidation')
       ->disableOriginalConstructor()
       ->getMock();
-    $invalidation->method('getExpression')
+    $invalidation_1->method('getExpression')
       ->willReturn('foo');
+    // Create duplicate stub for response class.
+    $invalidation_2 = $this->getMockBuilder('Drupal\purge\Plugin\Purge\Invalidation\TagInvalidation')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $invalidation_2->method('getExpression')
+      ->willReturn('foo');
+    // Create third stub for response class.
+    $invalidation_3 = $this->getMockBuilder('Drupal\purge\Plugin\Purge\Invalidation\TagInvalidation')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $invalidation_3->method('getExpression')
+      ->willReturn('bar');
+    // Create string numeric stubs for response class.
+    $invalidation_4 = $this->getMockBuilder('Drupal\purge\Plugin\Purge\Invalidation\TagInvalidation')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $invalidation_4->method('getExpression')
+      ->willReturn('123');
+    $invalidation_5 = $this->getMockBuilder('Drupal\purge\Plugin\Purge\Invalidation\TagInvalidation')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $invalidation_5->method('getExpression')
+      ->willReturn('234');
+    // Create integer stubs for response class.
+    $invalidation_6 = $this->getMockBuilder('Drupal\purge\Plugin\Purge\Invalidation\TagInvalidation')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $invalidation_6->method('getExpression')
+      ->willReturn(123);
+    $invalidation_7 = $this->getMockBuilder('Drupal\purge\Plugin\Purge\Invalidation\TagInvalidation')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $invalidation_7->method('getExpression')
+      ->willReturn(456);
+    // Create float stub for response class.
+    $invalidation_8 = $this->getMockBuilder('Drupal\purge\Plugin\Purge\Invalidation\TagInvalidation')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $invalidation_8->method('getExpression')
+      ->willReturn(1.01);
+    // Create boolean stub for response class.
+    $invalidation_9 = $this->getMockBuilder('Drupal\purge\Plugin\Purge\Invalidation\TagInvalidation')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $invalidation_9->method('getExpression')
+      ->willReturn(TRUE);
 
-    $purger->invalidate([$invalidation]);
+    $purger->invalidate([
+      $invalidation_1,
+      $invalidation_2,
+      $invalidation_3,
+      $invalidation_4,
+      $invalidation_5,
+      $invalidation_6,
+      $invalidation_7,
+      $invalidation_8,
+      $invalidation_9,
+    ]);
 
-    $this->assertEquals(['foo', 'on_purge_creation'], $subscriber->event->data);
+    $this->assertSame(
+      ['foo', 'bar', '123', '234', '456', '1.01', '1', 'on_purge_creation'],
+      $subscriber->event->data
+    );
   }
 
   /**
