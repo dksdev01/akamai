@@ -9,7 +9,7 @@
   "require": {
     "akamai-open/edgegrid-auth": "~1.0.1",
     "akamai-open/edgegrid-client": "~1.0.0",
-    "drupal/core": "~8.5"
+    "drupal/core": "~8.5 || ^9"
   },
   "require-dev": {
     "drupal/key": "~1.8",
