@@ -72,7 +72,7 @@ class StatusStorage {
    */
   public function save(array $status) {
     $statuses = $this->getResponseStatuses();
-    $status['request_made_at'] = REQUEST_TIME;
+    $status['request_made_at'] = \Drupal::time()->getRequestTime();
     $statuses[$status['purgeId']][] = $status;
     // Key the response log by the purge UUID.
     // Note that one purge may contain several requests.

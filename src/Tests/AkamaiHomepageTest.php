@@ -2,7 +2,7 @@
 
 namespace Drupal\akamai\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\Tests\BrowserTestBase;
 
 /**
  * Test the Akamai Homepage Clearing.
@@ -11,7 +11,7 @@ use Drupal\simpletest\WebTestBase;
  *
  * @group Akamai
  */
-class AkamaiHomepageTest extends WebTestBase {
+class AkamaiHomepageTest extends BrowserTestBase {
 
   /**
    * Node created.

@@ -2,7 +2,7 @@
 
 namespace Drupal\akamai\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\Tests\BrowserTestBase;
 use Drupal\Core\Url;
 
 /**
@@ -10,7 +10,7 @@ use Drupal\Core\Url;
  *
  * @group Akamai
  */
-class AkamaiConfigFormTest extends WebTestBase {
+class AkamaiConfigFormTest extends BrowserTestBase {
 
   /**
    * User with admin rights.

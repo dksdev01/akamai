@@ -22,7 +22,7 @@ function akamai_cron() {
   if (!empty($statuses)) {
     foreach ($statuses as $status) {
       $purge_status = new PurgeStatus($status);
-      if (($purge_status->getLastCheckedTime() + $expire) <= REQUEST_TIME) {
+      if (($purge_status->getLastCheckedTime() + $expire) <= \Drupal::time()->getRequestTime()) {
         $to_delete[] = $purge_status->getPurgeId();
       }
     }

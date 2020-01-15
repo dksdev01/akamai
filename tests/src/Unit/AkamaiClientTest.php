@@ -109,7 +109,8 @@ class AkamaiClientTest extends UnitTestCase {
    * @covers ::setType
    */
   public function testSetTypeException() {
-    $this->setExpectedException(\InvalidArgumentException::class, 'Type must be one of: cpcode, arl');
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('Type must be one of: cpcode, arl');
     $akamai_client = $this->getClient();
     $akamai_client->setType('wrong');
     $this->assertAttributeEquals('arl', 'type', $akamai_client);
@@ -132,7 +133,8 @@ class AkamaiClientTest extends UnitTestCase {
    * @covers ::setAction
    */
   public function testSetActionException() {
-    $this->setExpectedException(\InvalidArgumentException::class, 'Action must be one of: remove, invalidate');
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('Action must be one of: remove, invalidate');
     $akamai_client = $this->getClient();
     $akamai_client->setAction('wrong');
     $this->assertAttributeEquals('production', 'action', $akamai_client);
@@ -155,7 +157,8 @@ class AkamaiClientTest extends UnitTestCase {
    * @covers ::setDomain
    */
   public function testSetDomainException() {
-    $this->setExpectedException(\InvalidArgumentException::class, 'Domain must be one of: staging, production');
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('Domain must be one of: staging, production');
     $akamai_client = $this->getClient();
     $akamai_client->setDomain('wrong');
     $this->assertAttributeEquals('production', 'domain', $akamai_client);

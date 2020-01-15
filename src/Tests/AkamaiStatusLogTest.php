@@ -2,7 +2,8 @@
 
 namespace Drupal\akamai\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\Tests\BrowserTestBase;
+use Drupal\Tests\Traits\Core\CronRunTrait;
 
 /**
  * Tests Akamai purge status logging.
@@ -11,7 +12,9 @@ use Drupal\simpletest\WebTestBase;
  *
  * @group Akamai
  */
-class AkamaiStatusLogTest extends WebTestBase {
+class AkamaiStatusLogTest extends BrowserTestBase {
+
+  use CronRunTrait;
 
   /**
    * Modules to enable.
@@ -44,7 +47,7 @@ class AkamaiStatusLogTest extends WebTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  protected function setUp() {
     parent::setUp();
     $this->akamaiConfig = \Drupal::configFactory()->getEditable('akamai.settings');
     $this->statusStorage = \Drupal::service('akamai.status_storage');
@@ -68,7 +71,7 @@ class AkamaiStatusLogTest extends WebTestBase {
     $this->assertNotNull($saved_status, 'Status was saved.');
 
     // Tests that a timestamp is added to the status.
-    $timestamp = REQUEST_TIME;
+    $timestamp = \Drupal::time()->getRequestTime();
     $saved_status = array_pop($saved_status);
     $key = 'request_made_at';
     $has_timestamp = array_key_exists($key, $saved_status) && $saved_status[$key] >= $timestamp;

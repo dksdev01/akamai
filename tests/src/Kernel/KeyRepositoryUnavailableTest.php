@@ -37,7 +37,7 @@ class KeyRepositoryUnavailableTest extends KernelTestBase {
    * Tests key provider can't retrieve keys if key module is missing.
    */
   public function testKeyProviderGetKeysThrowsException() {
-    $this->setExpectedException(\Exception::class);
+    $this->expectException(\Exception::class);
     $keys = $this->container->get('akamai.key_provider')->getKeys();
   }
 
@@ -45,7 +45,7 @@ class KeyRepositoryUnavailableTest extends KernelTestBase {
    * Tests key provider can't retrieve specific keys if key module is missing.
    */
   public function testKeyProviderGetKeyThrowsException() {
-    $this->setExpectedException(\Exception::class);
+    $this->expectException(\Exception::class);
     $keys = $this->container->get('akamai.key_provider')->getKey('some key');
   }
 

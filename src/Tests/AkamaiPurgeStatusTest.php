@@ -2,14 +2,14 @@
 
 namespace Drupal\akamai\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\Tests\BrowserTestBase;
 
 /**
  * Test the Purge Status page.
  *
  * @group Akamai
  */
-class AkamaiPurgeStatusTest extends WebTestBase {
+class AkamaiPurgeStatusTest extends BrowserTestBase {
 
   /**
    * User with admin rights.
