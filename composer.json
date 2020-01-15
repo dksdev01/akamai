@@ -13,7 +13,7 @@
   },
   "require-dev": {
     "drupal/key": "~1.8",
-    "drupal/purge": "3.0-beta8"
+    "drupal/purge": "3.0-beta9"
   },
   "extra": {
     "drush": {
