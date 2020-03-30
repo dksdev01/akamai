@@ -11,3 +11,5 @@ recommends:
   - key:key
 dependencies:
   - drupal:system (>=8.5)
+test_dependencies:
+  - token:token

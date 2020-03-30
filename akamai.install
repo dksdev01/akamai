@@ -47,3 +47,12 @@ function akamai_update_8002(&$sandbox) {
   $config->set('purge_urls_with_hostname', TRUE);
   $config->save();
 }
+
+/**
+ * Set edgescape_support default.
+ */
+function akamai_update_8003(&$sandbox) {
+  $config = \Drupal::service('config.factory')->getEditable('akamai.settings');
+  $config->set('edgescape_support', FALSE);
+  $config->save();
+}

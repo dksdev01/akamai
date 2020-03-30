@@ -13,6 +13,7 @@ use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\akamai\Helper\Edgescape;
 
 /**
  * A configuration form to interact with Akamai API settings.
@@ -309,6 +310,18 @@ class ConfigForm extends ConfigFormBase {
       '#pre_render' => [[$this, 'implodeElement']],
     ];
 
+    $form['edgescape_fieldset'] = [
+      '#type' => 'fieldset',
+      '#title' => t('Edgescape Settings'),
+    ];
+
+    $form['edgescape_fieldset'][Edgescape::EDGESCAPE_SUPPORT] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable Edgescape Support'),
+      '#default_value' => $config->get(Edgescape::EDGESCAPE_SUPPORT),
+      '#description' => $this->t('Enable support for Akamai Edgescape processing and Drupal token'),
+    ];
+
     $form['devel_fieldset'] = [
       '#type' => 'fieldset',
       '#title' => t('Development Options'),
@@ -375,6 +388,7 @@ class ConfigForm extends ConfigFormBase {
       ->set('log_requests', $values['log_requests'])
       ->set('edge_cache_tag_header', $values['edge_cache_tag_header'])
       ->set('edge_cache_tag_header_blacklist', $blacklist)
+      ->set(Edgescape::EDGESCAPE_SUPPORT, $values[Edgescape::EDGESCAPE_SUPPORT])
       ->set('disabled', $values['disabled'])
       ->save();
 

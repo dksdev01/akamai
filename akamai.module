@@ -6,6 +6,7 @@
  */
 
 use Drupal\akamai\PurgeStatus;
+use Drupal\Core\Render\BubbleableMetadata;
 
 /**
  * Implements hook_cron().
@@ -33,4 +34,47 @@ function akamai_cron() {
   }
 
   \Drupal::service('logger.channel.akamai')->info('Purge %count old Purge status logs.', ['%count' => count($to_delete)]);
+}
+
+/**
+ * Implements hook_token_info().
+ */
+function akamai_token_info() {
+  $config = \Drupal::configFactory()->get('akamai.settings');
+  return [
+    'types' => [
+      'akamai' => [
+        'name' => t('Akamai'),
+        'description' => t('Tokens providing access to Akamai-related information.'),
+      ],
+    ],
+    'tokens' => [
+      'akamai' => [
+        'edgescape' => [
+          'name' => t('Edgescape'),
+          'description' => t('The type of Edgescape location information, for instance <code>continent</code> or <code>country_code</code>.'),
+          'dynamic' => TRUE,
+        ],
+      ],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_tokens().
+ */
+function akamai_tokens($type, $tokens, array $data, array $options, BubbleableMetadata $bubbleable_metadata) {
+  $replacements = [];
+
+  if ($type == 'akamai') {
+
+    if ($edgescapeTokens = \Drupal::token()->findWithPrefix($tokens, 'edgescape')) {
+      $edgescape = \Drupal::service('akamai.helper.edgescape');
+      foreach ($edgescapeTokens as $type => $original) {
+        $replacements[$original] = $edgescape->getInformationByType($type);
+      }
+    }
+  }
+
+  return $replacements;
 }

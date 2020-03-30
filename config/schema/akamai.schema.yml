@@ -90,3 +90,6 @@ akamai.settings:
       sequence:
         type: string
         label: tag
+    edgescape_support:
+      type: boolean
+      label: 'Enable support for Akamai Edgescape processing and Drupal token'

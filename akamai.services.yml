@@ -31,3 +31,6 @@ services:
       - { name: event_subscriber }
   akamai.helper.cachetagformatter:
     class: Drupal\akamai\Helper\CacheTagFormatter
+  akamai.helper.edgescape:
+    class: Drupal\akamai\Helper\Edgescape
+    arguments: ['@config.factory', '@request_stack']
