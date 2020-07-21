@@ -61,7 +61,7 @@ class CredentialCheck extends DiagnosticCheckBase {
 
     if ($this->config->get('disabled') == TRUE) {
       $this->recommendation = $this->t('Akamai purging is disabled.');
-      return self::SEVERITY_INFO;
+      return self::SEVERITY_ERROR;
     }
 
     // @todo Getting this globally feels gross. Is there a better way?
