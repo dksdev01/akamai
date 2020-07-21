@@ -21,10 +21,16 @@ function akamai_cron() {
   $to_delete = [];
   // Mark logs older than our expire period for deletion.
   if (!empty($statuses)) {
+    $total = $config->get('number_of_logs_to_delete');
+    $count = 0;
     foreach ($statuses as $status) {
       $purge_status = new PurgeStatus($status);
-      if (($purge_status->getLastCheckedTime() + $expire) <= \Drupal::time()->getRequestTime()) {
+      if (($purge_status->getLastCheckedTime() + $expire) <= \Drupal::time()->getRequestTime() && $count < $total) {
         $to_delete[] = $purge_status->getPurgeId();
+        $count++;
+        if ($count == $total) {
+          break;
+        }
       }
     }
   }

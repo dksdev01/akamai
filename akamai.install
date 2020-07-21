@@ -33,7 +33,7 @@ function akamai_requirements($phase) {
 /**
  * Set edge_cache_tag_header default.
  */
-function akamai_update_8001(&$sandbox) {
+function akamai_update_8001() {
   $config = \Drupal::service('config.factory')->getEditable('akamai.settings');
   $config->set('edge_cache_tag_header', FALSE);
   $config->save();
@@ -42,7 +42,7 @@ function akamai_update_8001(&$sandbox) {
 /**
  * Set purge_urls_with_hostname setting to match previous behavior.
  */
-function akamai_update_8002(&$sandbox) {
+function akamai_update_8002() {
   $config = \Drupal::service('config.factory')->getEditable('akamai.settings');
   $config->set('purge_urls_with_hostname', TRUE);
   $config->save();
@@ -51,8 +51,17 @@ function akamai_update_8002(&$sandbox) {
 /**
  * Set edgescape_support default.
  */
-function akamai_update_8003(&$sandbox) {
+function akamai_update_8003() {
   $config = \Drupal::service('config.factory')->getEditable('akamai.settings');
   $config->set('edgescape_support', FALSE);
+  $config->save();
+}
+
+/**
+ * Set number_of_logs_to_delete default.
+ */
+function akamai_update_8004() {
+  $config = \Drupal::service('config.factory')->getEditable('akamai.settings');
+  $config->set('number_of_logs_to_delete', 20);
   $config->save();
 }

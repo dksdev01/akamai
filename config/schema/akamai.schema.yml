@@ -93,3 +93,6 @@ akamai.settings:
     edgescape_support:
       type: boolean
       label: 'Enable support for Akamai Edgescape processing and Drupal token'
+    number_of_logs_to_delete:
+      type: integer
+      label: 'Number of logs to delete per cron run.'

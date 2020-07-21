@@ -23,3 +23,4 @@ status_expire: 1209600
 edge_cache_tag_header: FALSE
 purge_urls_with_hostname: FALSE
 edgescape_support: FALSE
+number_of_logs_to_delete: 20

@@ -282,12 +282,25 @@ class ConfigForm extends ConfigFormBase {
       '#required' => TRUE,
     ];
 
-    $form['status_expire'] = [
+    $form['status_settings'] = [
+      '#type' => 'fieldset',
+      '#title' => t('Purge Status Settings'),
+    ];
+
+
+    $form['status_settings']['status_expire'] = [
       '#type' => 'textfield',
       '#title' => t('Purge Status expiry'),
       '#default_value' => $config->get('status_expire'),
       '#description' => $this->t('This module keeps a log of purge statuses. They are automatically deleted after this amount of time (in seconds).'),
       '#size' => 12,
+    ];
+
+    $form['status_settings']['number_of_logs_to_delete'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Number of logs to delete per cron run.'),
+      '#default_value' => (!empty($config->get('number_of_logs_to_delete'))) ? $config->get('number_of_logs_to_delete') : 20,
+      '#description' => $this->t('How many log statuses to delete per cron run.  Note on heavy sites with a lot of logs bulk deletion can be a performance issue.'),
     ];
 
     $form['edge_cache_tag_header_fieldset'] = [
@@ -390,6 +403,7 @@ class ConfigForm extends ConfigFormBase {
       ->set('edge_cache_tag_header_blacklist', $blacklist)
       ->set(Edgescape::EDGESCAPE_SUPPORT, $values[Edgescape::EDGESCAPE_SUPPORT])
       ->set('disabled', $values['disabled'])
+      ->set('number_of_logs_to_delete', $values['number_of_logs_to_delete'])
       ->save();
 
     // Call the form submit handler for each of the versions.

@@ -90,6 +90,16 @@ class AkamaiStatusLogTest extends BrowserTestBase {
     $this->cronRun();
     $saved_status = $this->statusStorage->get($mock_status['purgeId']);
     $this->assertFalse($saved_status, 'Statuses deleted on cron after expiring.');
+
+    // Tests that a set number of statues are deleted.
+    // Add 3 more status log requests, for a total of 3 saved.
+    $this->config('akamai.settings')->set('number_of_logs_to_delete', 2)->save(TRUE);
+    $this->statusStorage->save($this->mockStatus());
+    $this->statusStorage->save($this->mockStatus());
+    $this->statusStorage->save($this->mockStatus());
+    $this->cronRun();
+    $saved_status = $this->statusStorage->getResponseStatuses();;
+    $this->assertTrue(count($saved_status) == 1, '1 status deleted on cron after setting number of logs to delete.');
   }
 
   /**
@@ -102,7 +112,7 @@ class AkamaiStatusLogTest extends BrowserTestBase {
     return [
       'estimatedSeconds' => '420',
       'progressUri' => '/ccu/v2/purges/57799d8b-10e4-11e4-9088-62ece60caaf0',
-      'purgeId' => '57799d8b-10e4-11e4-9088-62ece60caaf0',
+      'purgeId' => uniqid('akamai', TRUE),
       'supportId' => '17PY1405953363409286-284546144',
       'httpStatus' => '201',
       'detail' => 'Request accepted.',
