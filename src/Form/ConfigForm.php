@@ -284,13 +284,13 @@ class ConfigForm extends ConfigFormBase {
 
     $form['status_settings'] = [
       '#type' => 'fieldset',
-      '#title' => t('Purge Status Settings'),
+      '#title' => $this->t('Purge Status Settings'),
     ];
 
 
     $form['status_settings']['status_expire'] = [
       '#type' => 'textfield',
-      '#title' => t('Purge Status expiry'),
+      '#title' => $this->t('Purge Status expiry'),
       '#default_value' => $config->get('status_expire'),
       '#description' => $this->t('This module keeps a log of purge statuses. They are automatically deleted after this amount of time (in seconds).'),
       '#size' => 12,
@@ -305,7 +305,7 @@ class ConfigForm extends ConfigFormBase {
 
     $form['edge_cache_tag_header_fieldset'] = [
       '#type' => 'fieldset',
-      '#title' => t('Edge-Cache-Tag Header Settings'),
+      '#title' => $this->t('Edge-Cache-Tag Header Settings'),
     ];
 
     $form['edge_cache_tag_header_fieldset']['edge_cache_tag_header'] = [
@@ -317,7 +317,7 @@ class ConfigForm extends ConfigFormBase {
 
     $form['edge_cache_tag_header_fieldset']['edge_cache_tag_header_blacklist'] = [
       '#type' => 'textarea',
-      '#title' => t('Cache Tag Blacklist'),
+      '#title' => $this->t('Cache Tag Blacklist'),
       '#default_value' => $config->get('edge_cache_tag_header_blacklist'),
       '#description' => $this->t('List of tag prefixes to blacklist from the Edge-Cache-Tag header. One per line.'),
       '#pre_render' => [[$this, 'implodeElement']],
@@ -325,7 +325,7 @@ class ConfigForm extends ConfigFormBase {
 
     $form['edgescape_fieldset'] = [
       '#type' => 'fieldset',
-      '#title' => t('Edgescape Settings'),
+      '#title' => $this->t('Edgescape Settings'),
     ];
 
     $form['edgescape_fieldset'][Edgescape::EDGESCAPE_SUPPORT] = [
@@ -337,7 +337,7 @@ class ConfigForm extends ConfigFormBase {
 
     $form['devel_fieldset'] = [
       '#type' => 'fieldset',
-      '#title' => t('Development Options'),
+      '#title' => $this->t('Development Options'),
     ];
 
     $form['devel_fieldset']['disabled'] = [
