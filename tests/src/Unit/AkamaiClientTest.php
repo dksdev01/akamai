@@ -89,7 +89,10 @@ class AkamaiClientTest extends UnitTestCase {
   public function testSetQueue() {
     $akamai_client = $this->getClient();
     $akamai_client->setQueue('test_queue');
-    $this->assertAttributeEquals('test_queue', 'queue', $akamai_client);
+    $reflection = new \ReflectionClass($akamai_client);
+    $reflection_property = $reflection->getProperty('queue');
+    $reflection_property->setAccessible(TRUE);
+    $this->assertEquals('test_queue', $reflection_property->getValue($akamai_client));
   }
 
   /**
@@ -100,7 +103,10 @@ class AkamaiClientTest extends UnitTestCase {
   public function testSetType() {
     $akamai_client = $this->getClient();
     $akamai_client->setType('cpcode');
-    $this->assertAttributeEquals('cpcode', 'type', $akamai_client);
+    $reflection = new \ReflectionClass($akamai_client);
+    $reflection_property = $reflection->getProperty('type');
+    $reflection_property->setAccessible(TRUE);
+    $this->assertEquals('cpcode', $reflection_property->getValue($akamai_client));
   }
 
   /**
@@ -113,7 +119,10 @@ class AkamaiClientTest extends UnitTestCase {
     $this->expectExceptionMessage('Type must be one of: cpcode, arl');
     $akamai_client = $this->getClient();
     $akamai_client->setType('wrong');
-    $this->assertAttributeEquals('arl', 'type', $akamai_client);
+    $reflection = new \ReflectionClass($akamai_client);
+    $reflection_property = $reflection->getProperty('type');
+    $reflection_property->setAccessible(TRUE);
+    $this->assertEquals('arl', $reflection_property->getValue($akamai_client));
   }
 
   /**
@@ -124,7 +133,10 @@ class AkamaiClientTest extends UnitTestCase {
   public function testSetAction() {
     $akamai_client = $this->getClient();
     $akamai_client->setAction('invalidate');
-    $this->assertAttributeEquals('invalidate', 'action', $akamai_client);
+    $reflection = new \ReflectionClass($akamai_client);
+    $reflection_property = $reflection->getProperty('action');
+    $reflection_property->setAccessible(TRUE);
+    $this->assertEquals('invalidate', $reflection_property->getValue($akamai_client));
   }
 
   /**
@@ -137,7 +149,10 @@ class AkamaiClientTest extends UnitTestCase {
     $this->expectExceptionMessage('Action must be one of: remove, invalidate');
     $akamai_client = $this->getClient();
     $akamai_client->setAction('wrong');
-    $this->assertAttributeEquals('production', 'action', $akamai_client);
+    $reflection = new \ReflectionClass($akamai_client);
+    $reflection_property = $reflection->getProperty('action');
+    $reflection_property->setAccessible(TRUE);
+    $this->assertEquals('production', $reflection_property->getValue($akamai_client));
   }
 
   /**
@@ -148,7 +163,10 @@ class AkamaiClientTest extends UnitTestCase {
   public function testSetDomain() {
     $akamai_client = $this->getClient();
     $akamai_client->setDomain('staging');
-    $this->assertAttributeEquals('staging', 'domain', $akamai_client);
+    $reflection = new \ReflectionClass($akamai_client);
+    $reflection_property = $reflection->getProperty('domain');
+    $reflection_property->setAccessible(TRUE);
+    $this->assertEquals('staging', $reflection_property->getValue($akamai_client));
   }
 
   /**
@@ -161,7 +179,10 @@ class AkamaiClientTest extends UnitTestCase {
     $this->expectExceptionMessage('Domain must be one of: staging, production');
     $akamai_client = $this->getClient();
     $akamai_client->setDomain('wrong');
-    $this->assertAttributeEquals('production', 'domain', $akamai_client);
+    $reflection = new \ReflectionClass($akamai_client);
+    $reflection_property = $reflection->getProperty('domain');
+    $reflection_property->setAccessible(TRUE);
+    $this->assertEquals('production', $reflection_property->getValue($akamai_client));
   }
 
   /**
