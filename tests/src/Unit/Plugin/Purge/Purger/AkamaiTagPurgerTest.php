@@ -161,11 +161,75 @@ class AkamaiTagPurgerTest extends UnitTestCase {
       $config_factory->method('get')
         ->willReturn($config);
 
-      $purger = new AkamaiTagPurger(['id' => 'my_id'], 'my_id', 'my_definition', $config_factory, $event_dispatcher, $akamai_client_factory);
+      $logger = $this->getMockBuilder('\Psr\Log\LoggerInterface')->getMock();
+
+      $purger = new AkamaiTagPurger(['id' => 'my_id'], 'my_id', 'my_definition', $config_factory, $event_dispatcher, $akamai_client_factory, $logger);
 
       $this->assertEquals($purger->getTimeHint(), $returned_value);
     }
 
+  }
+
+  /**
+   * Tests AkamaiTagPurger::invalidate() for warning on exceeding tag length.
+   */
+  public function testInvalidateTagLength() {
+    $long_tag = str_repeat('a', 129);
+
+    $logger = $this->getMockBuilder('\Drupal\Core\Logger\LoggerChannel')
+      ->disableOriginalConstructor()
+      ->setMethods(['warning'])
+      ->getMock();
+    $logger->expects($this->once())
+      ->method('warning')
+      ->with('Cache Tag %tag has exceeded the Akamai 128 character tag maximum length.', ['%tag' => $long_tag]);
+
+    $purger = $this->getMockBuilder('Drupal\akamai\Plugin\Purge\Purger\AkamaiTagPurger')
+      ->disableOriginalConstructor()
+      ->setMethods(NULL)
+      ->getMock();
+    $reflection = new \ReflectionClass($purger);
+    $reflection_property = $reflection->getProperty('logger');
+    $reflection_property->setAccessible(TRUE);
+    $reflection_property->setValue($purger, $logger);
+
+    $formatter = new CacheTagFormatter();
+
+    $container = new ContainerBuilder();
+    $container->set('akamai.helper.cachetagformatter', $formatter);
+    \Drupal::setContainer($container);
+
+    $client = $this->getMockBuilder('Drupal\akamai\Plugin\Client\AkamaiClientV3')
+      ->disableOriginalConstructor()
+      ->setMethods(['setType', 'purgeTags'])
+      ->getMock();
+
+    $reflection = new \ReflectionClass($purger);
+    $reflection_property = $reflection->getProperty('client');
+    $reflection_property->setAccessible(TRUE);
+    $reflection_property->setValue($purger, $client);
+
+    // Setup the mock event subscriber.
+    $subscriber = new MockSubscriber();
+    $event_dispatcher = new EventDispatcher();
+    $event_dispatcher->addListener(AkamaiPurgeEvents::PURGE_CREATION, [$subscriber, 'onPurgeCreation']);
+
+    $reflection_property = $reflection->getProperty('eventDispatcher');
+    $reflection_property->setAccessible(TRUE);
+    $reflection_property->setValue($purger, $event_dispatcher);
+
+    // Create stub for response class.
+    $invalidation = $this->getMockBuilder('Drupal\purge\Plugin\Purge\Invalidation\TagInvalidation')
+      ->disableOriginalConstructor()
+      ->getMock();
+    $invalidation->method('setState')
+      ->willReturn('foo');
+    $invalidation->method('getExpression')
+      ->willReturn($long_tag);
+
+    $purger->invalidate([
+      $invalidation,
+    ]);
   }
 
 }

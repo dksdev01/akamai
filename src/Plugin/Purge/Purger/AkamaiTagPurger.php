@@ -6,6 +6,7 @@ use Drupal\akamai\AkamaiClientFactory;
 use Drupal\akamai\Event\AkamaiPurgeEvents;
 use Drupal\purge\Plugin\Purge\Purger\PurgerBase;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Drupal\purge\Plugin\Purge\Invalidation\InvalidationInterface;
@@ -46,6 +47,13 @@ class AkamaiTagPurger extends PurgerBase {
   protected $eventDispatcher;
 
   /**
+   * A logger instance.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelInterface
+   */
+  protected $logger;
+
+  /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
@@ -55,7 +63,8 @@ class AkamaiTagPurger extends PurgerBase {
       $plugin_definition,
       $container->get('config.factory'),
       $container->get('event_dispatcher'),
-      $container->get('akamai.client.factory')
+      $container->get('akamai.client.factory'),
+      $container->get('logger.channel.akamai')
     );
   }
 
@@ -74,12 +83,15 @@ class AkamaiTagPurger extends PurgerBase {
    *   The event dispatcher.
    * @param \Drupal\akamai\AkamaiClientFactory $akamai_client_factory
    *   The akamai client factory.
+   * @param \Psr\Log\LoggerInterface $logger
+   *   Logger interface.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config, EventDispatcherInterface $event_dispatcher, AkamaiClientFactory $akamai_client_factory) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config, EventDispatcherInterface $event_dispatcher, AkamaiClientFactory $akamai_client_factory, LoggerInterface $logger) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->client = $akamai_client_factory->get();
     $this->akamaiClientConfig = $config->get('akamai.settings');
     $this->eventDispatcher = $event_dispatcher;
+    $this->logger = $logger;
   }
 
   /**
@@ -108,6 +120,9 @@ class AkamaiTagPurger extends PurgerBase {
     foreach ($invalidations as $invalidation) {
       $invalidation->setState(InvalidationInterface::PROCESSING);
       $tag = $formatter->format($invalidation->getExpression());
+      if (mb_strlen($tag) > 128) {
+        $this->logger->warning('Cache Tag %tag has exceeded the Akamai 128 character tag maximum length.', ['%tag' => $tag]);
+      }
       // Remove duplicate entries.
       $tags_to_clear[$tag] = $tag;
     }
