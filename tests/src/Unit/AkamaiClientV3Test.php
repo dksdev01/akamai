@@ -20,7 +20,7 @@ class AkamaiClientV3Test extends UnitTestCase {
    * @param array $config
    *   An array of client configuration.
    *
-   * @return \Drupal\akamai\Plugin\Client\AkamaiClientV2
+   * @return \Drupal\akamai\Plugin\Client\AkamaiClientV3
    *   An AkamaiClient to test.
    */
   protected function getClient(array $config = []) {
@@ -40,9 +40,6 @@ class AkamaiClientV3Test extends UnitTestCase {
       'purge_urls_with_hostname' => FALSE,
     ];
     $logger = $this->prophesize(LoggerInterface::class)->reveal();
-    $status_storage = $this->getMockBuilder('Drupal\akamai\StatusStorage')
-      ->disableOriginalConstructor()
-      ->getMock();
 
     $edgegridclient = $this->getMockBuilder('Akamai\Open\EdgeGrid\Client')
       ->disableOriginalConstructor()
@@ -58,7 +55,7 @@ class AkamaiClientV3Test extends UnitTestCase {
       ->willReturn(201);
 
     // Create stub for the Akamai Client class.
-    $akamai_client = $this->getMockBuilder('Drupal\akamai\Plugin\Client\AkamaiClientV3')
+    return $this->getMockBuilder('Drupal\akamai\Plugin\Client\AkamaiClientV3')
       ->setConstructorArgs([
         [],
         'v3',
@@ -66,14 +63,11 @@ class AkamaiClientV3Test extends UnitTestCase {
         $edgegridclient,
         $this->getConfigFactoryStub(['akamai.settings' => $config]),
         $logger,
-        $status_storage,
         $this->prophesize(MessengerInterface::class)->reveal(),
         $this->prophesize(KeyProviderInterface::class)->reveal(),
       ])
       ->setMethods(['getQueueLength', 'purgeRequest'])
       ->getMock();
-
-    return $akamai_client;
   }
 
   /**

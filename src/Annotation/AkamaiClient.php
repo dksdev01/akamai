@@ -12,7 +12,7 @@ use Drupal\Component\Annotation\Plugin;
  * Plugin namespace: Plugin\Client
  *
  * For a working example, see
- * \Drupal\akamai\Plugin\Client\AkamaiClientV2
+ * \Drupal\akamai\Plugin\Client\AkamaiClientV3
  *
  * @see plugin_api
  *

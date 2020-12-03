@@ -88,7 +88,7 @@ class AkamaiClientFactory {
    *   the current version.
    *
    * @return array
-   *   An array of supported client CCU versions (e.g. v2/ v3).
+   *   An array of supported client CCU versions (e.g. v3).
    *
    * @see \Drupal\akamai\AkamaiClientInterface::getSupportedExtensions()
    */

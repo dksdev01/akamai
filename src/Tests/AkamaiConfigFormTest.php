@@ -47,16 +47,10 @@ class AkamaiConfigFormTest extends BrowserTestBase {
     $edit['basepath'] = 'http://www.example.com';
     $edit['timeout'] = 20;
     $edit['domain'] = 'staging';
-    $edit['ccu_version'] = 'v2';
-    $edit['v2[action]'] = 'invalidate';
+    $edit['ccu_version'] = 'v3';
+    $edit['v3[action]'] = 'invalidate';
 
     $this->drupalPostForm('admin/config/akamai/config', $edit, t('Save configuration'));
-
-    // Tests that we can't save non-integer status expire periods.
-    $edit['status_expire'] = 'lol';
-    $this->drupalPostForm(Url::fromRoute('akamai.settings')->getInternalPath(), $edit, t('Save configuration'));
-    $this->assertText(t('Please enter only integer values in this field.'), 'Allowed only integer expiry values');
-    $edit['status_expire'] = 1;
 
     // Tests that we can't save non-integer timeouts.
     $edit['timeout'] = 'lol';

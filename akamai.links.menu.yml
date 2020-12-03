@@ -15,13 +15,6 @@ akamai.admin_config_cache_clear:
   route_name: akamai.cache_clear
   weight: 1
 
-akamai.admin_config_statuslog_list:
-  title: 'Akamai Purge Status'
-  parent: akamai.admin_config_menu
-  description: 'View recent purge requests and their status.'
-  route_name: akamai.statuslog_list
-  weight: 2
-
 akamai.admin_config_settings:
   title: 'Akamai Settings'
   parent: akamai.admin_config_menu

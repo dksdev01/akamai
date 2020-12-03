@@ -65,3 +65,32 @@ function akamai_update_8004() {
   $config->set('number_of_logs_to_delete', 20);
   $config->save();
 }
+
+/**
+ * Decommission CCUv2.
+ */
+function akamai_update_8005() {
+  $version = \Drupal::config('akamai.settings')->get('version');
+  if ($version !== 'v3') {
+    \Drupal::logger('akamai')->warning('Please note: Akamai have deprecated CCUv2, the Akamai module now (currently) only supports CCUv3.');
+
+    \Drupal::service('config.factory')
+      ->getEditable('akamai.settings')
+      ->set('version', 'v3')
+      ->save();
+  }
+
+  // Delete old configs.
+  \Drupal::service('config.factory')
+    ->getEditable('akamai.settings.action_v2')
+    ->delete();
+  \Drupal::service('config.factory')
+    ->getEditable('akamai.settings.status_expire')
+    ->delete();
+  \Drupal::service('config.factory')
+    ->getEditable('number_of_logs_to_delete')
+    ->delete();
+
+  // Remove status logs.
+  \Drupal::state()->delete('akamai.purge_status');
+}

@@ -145,10 +145,6 @@ class AkamaiPurger extends PurgerBase {
   /**
    * Use a static value for purge queuer performance.
    *
-   * Akamai's CCUv2 can take several minutes to action a purge request. However,
-   * from Purge's perspective, we should mark objects as purged upstream when
-   * Akamai accepts them for purging.
-   *
    * @todo investigate whether we can track performance asynchronously.
    *
    * @see parent::hasRunTimeMeasurement()

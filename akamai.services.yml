@@ -10,9 +10,6 @@ services:
     parent: default_plugin_manager
     tags:
       - { name: plugin_manager_cache_clear }
-  akamai.status_storage:
-    class: Drupal\akamai\StatusStorage
-    arguments: ['@config.factory', '@logger.channel.akamai']
   akamai.key_provider:
     class: Drupal\akamai\KeyProvider
     arguments: ['@?key.repository']

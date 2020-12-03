@@ -244,7 +244,7 @@ class CacheControlForm extends FormBase {
    * Shows a message to the user if not authenticated to the Akamai API.
    */
   protected function showAuthenticationWarning() {
-    $message = $this->t('You are not authenticated to Akamai CCU v2. Until you authenticate, you will not be able to clear URLs from the Akamai cache. <a href=":url">Update settings now</a>.', [':url' => Url::fromRoute('akamai.settings')->toString()]);
+    $message = $this->t('You are not authenticated to Akamai CCU v3. Until you authenticate, you will not be able to clear URLs from the Akamai cache. <a href=":url">Update settings now</a>.', [':url' => Url::fromRoute('akamai.settings')->toString()]);
     $this->messenger->addWarning($message);
   }
 

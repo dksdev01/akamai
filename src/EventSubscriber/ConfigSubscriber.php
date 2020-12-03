@@ -23,10 +23,10 @@ class ConfigSubscriber implements EventSubscriberInterface {
     $saved_config = $event->getConfig();
     if ($saved_config->getName() == 'akamai.settings') {
       if (
-          $event->isChanged('storage_method') or
-          $event->isChanged('rest_api_url') or
-          $event->isChanged('client_token') or
-          $event->isChanged('client_secret') or
+          $event->isChanged('storage_method') ||
+          $event->isChanged('rest_api_url') ||
+          $event->isChanged('client_token') ||
+          $event->isChanged('client_secret') ||
           $event->isChanged('access_token')
       ) {
         \Drupal::state()->set('akamai.valid_credentials', \Drupal::service('akamai.client.factory')->get()->isAuthorized());

@@ -13,7 +13,7 @@ akamai.settings:
       label: 'Disable Akamai cache clearing globally'
     rest_api_url:
       type: string
-      label: 'URL to Akamai CCUv2 API. Available in your Akamai console.'
+      label: 'URL to Akamai CCUv3 API. Available in your Akamai console.'
     storage_method:
       type: string
       label: 'Credential storage method'
@@ -48,18 +48,6 @@ akamai.settings:
         staging:
           type: boolean
           label: 'Staging'
-    action_v2:
-      type: mapping
-      label: 'Action CCUv2'
-      mapping:
-        remove:
-          type: boolean
-          label: 'Remove'
-          description: 'Remove content entirely from Edge server caches. next time an Edge server receives a request for the content, it will retrieve the current version from the origin server.'
-        invalidate:
-          type: boolean
-          label: 'Invalidate'
-          description: 'Marks the cached content as invalid. The next time a server receives a request for the content, it sends an HTTP conditional GET (If-Modified-Since) request to the origin. If the content has changed, the origin server returns a full fresh copy. Otherwise, the origin normally responds that the content has not changed, and the Edge server can serve the already-cached content.'
     action_v3:
       type: mapping
       label: 'Action CCUv3'
@@ -75,9 +63,6 @@ akamai.settings:
     log_requests:
       type: boolean
       label: 'Log all requests and responses to the Akamai log channel.'
-    status_expire:
-      type: integer
-      label: 'Expire purge status log entries after this many seconds'
     edge_cache_tag_header:
       type: boolean
       label: 'Expose Edge-Cache-Tag response header to send cache tags to Akamai'
@@ -93,6 +78,3 @@ akamai.settings:
     edgescape_support:
       type: boolean
       label: 'Enable support for Akamai Edgescape processing and Drupal token'
-    number_of_logs_to_delete:
-      type: integer
-      label: 'Number of logs to delete per cron run.'

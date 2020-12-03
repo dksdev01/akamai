@@ -47,7 +47,7 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
    *
    * @var string
    */
-  protected $apiBaseUrl = '/ccu/v2/';
+  protected $apiBaseUrl = '/ccu/v3/';
 
   /**
    * A logger instance.
@@ -55,13 +55,6 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
    * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
-
-  /**
-   * A purge status logger.
-   *
-   * @var StatusStorage
-   */
-  protected $statusStorage;
 
   /**
    * An action to take, either 'remove' or 'invalidate'.
@@ -113,18 +106,15 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
    *   The config factory.
    * @param \Psr\Log\LoggerInterface $logger
    *   A logger instance.
-   * @param \Drupal\akamai\StatusStorage $status_storage
-   *   A status logger for tracking purge responses.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   A messenger service.
    * @param \Drupal\akamai\KeyProviderInterface $key_provider
    *   A key provider service.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, EdgeGridClient $client, ConfigFactoryInterface $config_factory, LoggerInterface $logger, StatusStorage $status_storage, MessengerInterface $messenger, KeyProviderInterface $key_provider) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, EdgeGridClient $client, ConfigFactoryInterface $config_factory, LoggerInterface $logger, MessengerInterface $messenger, KeyProviderInterface $key_provider) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->logger = $logger;
     $this->configFactory = $config_factory;
-    $this->statusStorage = $status_storage;
     $this->client = $client;
 
     $this
@@ -160,7 +150,6 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
       $container->get('akamai.edgegridclient'),
       $container->get('config.factory'),
       $container->get('logger.channel.akamai'),
-      $container->get('akamai.status_storage'),
       $container->get('messenger'),
       $container->get('akamai.key_provider')
     );
@@ -365,30 +354,6 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
   }
 
   /**
-   * Returns the status of a previous purge request.
-   *
-   * @param string $purge_id
-   *   The UUID of the purge request to check.
-   *
-   * @return \GuzzleHttp\Psr7\Response|bool
-   *   Response to purge status request, or FALSE on failure.
-   */
-  public function getPurgeStatus($purge_id) {
-    try {
-      $response = $this->client->request(
-        'GET',
-        $this->apiBaseUrl . 'purges/' . $purge_id
-      );
-      return $response;
-    }
-    catch (RequestException $e) {
-      // @todo Better handling
-      $this->logger->error($this->formatExceptionMessage($e));
-      return FALSE;
-    }
-  }
-
-  /**
    * Sets the type of purge.
    *
    * @param string $type
@@ -462,7 +427,7 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
    * Sets API base url.
    *
    * @param string $url
-   *   A url to an API, eg '/ccu/v2/'.
+   *   A url to an API, eg '/ccu/v3/'.
    *
    * @return $this
    */

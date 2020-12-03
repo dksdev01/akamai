@@ -86,7 +86,7 @@ module)
 *  a queue
 *  a processor
 
-Purge will queued URLs that need to be cleared from Akamai automatically.
+Purge will queue URLs that need to be cleared from Akamai automatically.
 
 ### Without Purge
 
@@ -96,25 +96,3 @@ There are two ways to clear URLs without Purge:
 lists of URLs to clear.
 2. You can enable a block, 'Akamai Cache Clear', which will allow you to clear
 the page you are currently viewing.
-
-### Purge Status Tracking
-
-When you send a cache clear request, Akamai queues it for clearing, but this
-clearing may not happen instantly. Akamai's API allows for checking of
-purge statuses. This module keeps track of purge statuses so you can monitor
-them from within the Drupal admin UI.
-
-You can view purge status tracking at `admin/config/akamai/list`. Purges not
-yet complete will have a status of 'In-Progress', while completed purges will
-have a status of 'Done'.
-
-Purge status logs are deleted after 2 weeks. You can configure this expiry
-via the module's config form.
-
-## Testing and development
-
-Akamai provides a Mock API endpoint at
-https://akamaiopen2purgeccuproduction.docs.apiary.io/ccu/v2
-
-You can enable development mode in the config form to use this instead of a
-live URL.

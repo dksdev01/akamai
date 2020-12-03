@@ -1,4 +1,4 @@
-version: v2
+version: v3
 disabled: FALSE
 storage_method: 'file'
 rest_api_url: 'https://xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx.luna.akamaiapis.net/'
@@ -12,15 +12,10 @@ timeout: 5
 domain:
   production: TRUE
   staging: FALSE
-action_v2:
-  remove: TRUE
-  invalidate: FALSE
 action_v3:
   delete: TRUE
   invalidate: FALSE
 log_requests: FALSE
-status_expire: 1209600
 edge_cache_tag_header: FALSE
 purge_urls_with_hostname: FALSE
 edgescape_support: FALSE
-number_of_logs_to_delete: 20

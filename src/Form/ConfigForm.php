@@ -223,7 +223,7 @@ class ConfigForm extends ConfigFormBase {
     $form['ccu_version'] = [
       '#type' => 'radios',
       '#title' => $this->t('CCU Version'),
-      '#default_value' => $config->get('version') ?: 'v2',
+      '#default_value' => $config->get('version') ?: 'v3',
       '#options' => array_map(function ($version) {
         return $version->getPluginDefinition()['title'];
       }, $this->availableVersions),
@@ -280,27 +280,6 @@ class ConfigForm extends ConfigFormBase {
       ],
       '#description' => $this->t('The Akamai domain to use for cache clearing.'),
       '#required' => TRUE,
-    ];
-
-    $form['status_settings'] = [
-      '#type' => 'fieldset',
-      '#title' => $this->t('Purge Status Settings'),
-    ];
-
-
-    $form['status_settings']['status_expire'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Purge Status expiry'),
-      '#default_value' => $config->get('status_expire'),
-      '#description' => $this->t('This module keeps a log of purge statuses. They are automatically deleted after this amount of time (in seconds).'),
-      '#size' => 12,
-    ];
-
-    $form['status_settings']['number_of_logs_to_delete'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Number of logs to delete per cron run.'),
-      '#default_value' => (!empty($config->get('number_of_logs_to_delete'))) ? $config->get('number_of_logs_to_delete') : 20,
-      '#description' => $this->t('How many log statuses to delete per cron run.  Note on heavy sites with a lot of logs bulk deletion can be a performance issue.'),
     ];
 
     $form['edge_cache_tag_header_fieldset'] = [
@@ -363,7 +342,7 @@ class ConfigForm extends ConfigFormBase {
   public function validateForm(array &$form, FormStateInterface $form_state) {
     parent::validateForm($form, $form_state);
 
-    $int_fields = ['timeout', 'status_expire'];
+    $int_fields = ['timeout'];
     foreach ($int_fields as $field) {
       if (!ctype_digit($form_state->getValue($field))) {
         $form_state->setErrorByName($field, $this->t('Please enter only integer values in this field.'));
@@ -396,14 +375,12 @@ class ConfigForm extends ConfigFormBase {
       ->set('edgerc_section', $values['edgerc_section'])
       ->set('basepath', $values['basepath'])
       ->set('timeout', $values['timeout'])
-      ->set('status_expire', $values['status_expire'])
       ->set('domain', $this->saveDomain($values['domain']))
       ->set('log_requests', $values['log_requests'])
       ->set('edge_cache_tag_header', $values['edge_cache_tag_header'])
       ->set('edge_cache_tag_header_blacklist', $blacklist)
       ->set(Edgescape::EDGESCAPE_SUPPORT, $values[Edgescape::EDGESCAPE_SUPPORT])
       ->set('disabled', $values['disabled'])
-      ->set('number_of_logs_to_delete', $values['number_of_logs_to_delete'])
       ->save();
 
     // Call the form submit handler for each of the versions.

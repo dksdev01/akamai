@@ -77,16 +77,13 @@ class AkamaiClientV3 extends AkamaiClientBase {
       // Example response body:
       // @code
       // {
-      //  "estimatedSeconds": 420,
-      //  "progressUri": "/ccu/v2/purges/57799d8b-10e4-11e4-9088-62ece60caaf0",
-      //  "purgeId": "57799d8b-10e4-11e4-9088-62ece60caaf0",
-      //  "supportId": "17PY1405953363409286-284546144",
-      //  "httpStatus": 201,
-      //  "detail": "Request accepted.",
-      //  "pingAfterSeconds": 420
-      //  }.
+      //   "httpStatus": 201,
+      //   "detail": "Request accepted.",
+      //   "estimatedSeconds": 5,
+      //   "purgeId": "043f-4af0-843f-aaf0043faaf0",
+      //   "supportId": "17PY1321286429616716-211907680"
+      // }.
       // @endcode
-      $this->statusStorage->saveResponseStatus($response, $objects);
       return $response;
     }
     catch (RequestException $e) {

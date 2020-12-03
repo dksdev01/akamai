@@ -57,17 +57,6 @@ interface AkamaiClientInterface extends ContainerFactoryPluginInterface, PluginI
   public function setType($type);
 
   /**
-   * Returns the status of a previous purge request.
-   *
-   * @param string $purge_id
-   *   The UUID of the purge request to check.
-   *
-   * @return \GuzzleHttp\Psr7\Response|bool
-   *   Response to purge status request, or FALSE on failure.
-   */
-  public function getPurgeStatus($purge_id);
-
-  /**
    * Verifies that the body of a purge request will be under 50,000 bytes.
    *
    * @param array $paths
