@@ -10,6 +10,7 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Messenger\MessengerInterface;
+use Drupal\Core\Security\TrustedCallbackInterface;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -18,7 +19,7 @@ use Drupal\akamai\Helper\Edgescape;
 /**
  * A configuration form to interact with Akamai API settings.
  */
-class ConfigForm extends ConfigFormBase {
+class ConfigForm extends ConfigFormBase implements TrustedCallbackInterface {
 
   /**
    * An array containing currently available client versions.
@@ -73,6 +74,13 @@ class ConfigForm extends ConfigFormBase {
       $container->get('module_handler'),
       $container->get('akamai.key_provider')
     );
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function trustedCallbacks() {
+    return ['implodeElement'];
   }
 
   /**
