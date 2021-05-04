@@ -3,7 +3,7 @@ type: module
 description: 'Cache Control integration with Akamai CDN. Akamai is a registered trademark of Akamai Technologies, Inc.'
 core_version_requirement: ^8.8 || ^9
 package: Other
-configure: akamai.config_form
+configure: akamai.settings
 recommends:
   - purge:purge
   - purge_queuer_url:purge_queuer_url
