@@ -181,7 +181,7 @@ class AkamaiClientV3 extends AkamaiClientBase {
 
     $this->configFactory->getEditable('akamai.settings')
       ->set('action_v3', $actions)
-      ->set('purge_urls_with_hostname', $form_state->getValue('purge_urls_with_hostname'))
+      ->set('purge_urls_with_hostname', $form_state->getValue(['v3', 'purge_urls_with_hostname']))
       ->save();
   }
 
