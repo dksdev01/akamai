@@ -158,7 +158,7 @@ class CacheControlForm extends FormBase {
         }
         else {
           $url = Url::fromUserInput('/' . $path);
-          if ($url->isRouted()) {
+          if ($url->isRouted() || is_file($path)) {
             $paths_to_clear[] = $path;
           }
           else {
