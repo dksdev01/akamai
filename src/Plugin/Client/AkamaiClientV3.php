@@ -45,16 +45,6 @@ class AkamaiClientV3 extends AkamaiClientBase {
   protected $usesQueue = FALSE;
 
   /**
-   * Checks that we can connect with the supplied credentials.
-   *
-   * @return bool
-   *   TRUE if authorised, FALSE if not.
-   */
-  public function isAuthorized() {
-    return TRUE;
-  }
-
-  /**
    * Ask the API to purge an object.
    *
    * @param string[] $objects

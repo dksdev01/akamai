@@ -398,27 +398,7 @@ class ConfigForm extends ConfigFormBase implements TrustedCallbackInterface {
 
     parent::submitForm($form, $form_state);
 
-    if ($values['rest_api_url'] !== 'https://xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx.luna.akamaiapis.net/') {
-      $this->checkCredentials();
-    }
-    else {
-      \Drupal::service('messenger')->addWarning($this->t('You need to provide non-default credentials for this module to work.'));
-    }
-
     $this->messenger->addMessage($this->t('Settings saved.'));
-  }
-
-  /**
-   * Ensures credentials supplied actually work.
-   */
-  protected function checkCredentials() {
-    $client = \Drupal::service('akamai.client.factory')->get();
-    if ($client->isAuthorized()) {
-      $this->messenger->addMessage('Authenticated to Akamai.');
-    }
-    else {
-      $this->messenger->addError('Akamai authentication failed.');
-    }
   }
 
   /**

@@ -75,13 +75,6 @@ class CacheControlForm extends FormBase {
     $config = $this->config('akamai.settings');
     $version = $this->akamaiClient->getPluginId();
 
-    // Disable the form and show a message if we are not authenticated.
-    $form_disabled = FALSE;
-    if (\Drupal::state()->get('akamai.valid_credentials') == FALSE) {
-      $this->showAuthenticationWarning();
-      $form_disabled = TRUE;
-    }
-
     $settings_link = Url::fromRoute('akamai.settings');
     $settings_link = Link::fromTextAndUrl($settings_link->getInternalPath(), $settings_link)->toString();
     $paths_description = $this->t(
@@ -141,7 +134,6 @@ class CacheControlForm extends FormBase {
     $form['submit'] = [
       '#type' => 'submit',
       '#value' => $this->t('Start Refreshing Content'),
-      '#disabled' => $form_disabled,
     ];
 
     return $form;
@@ -238,14 +230,6 @@ class CacheControlForm extends FormBase {
     else {
       $this->messenger->addError($this->t('There was an error clearing the cache. Check logs for further detail.'));
     }
-  }
-
-  /**
-   * Shows a message to the user if not authenticated to the Akamai API.
-   */
-  protected function showAuthenticationWarning() {
-    $message = $this->t('You are not authenticated to Akamai CCU v3. Until you authenticate, you will not be able to clear URLs from the Akamai cache. <a href=":url">Update settings now</a>.', [':url' => Url::fromRoute('akamai.settings')->toString()]);
-    $this->messenger->addWarning($message);
   }
 
 }

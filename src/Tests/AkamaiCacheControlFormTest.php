@@ -48,11 +48,6 @@ class AkamaiCacheControlFormTest extends BrowserTestBase {
     $this->drupalCreateContentType(['type' => 'article']);
     $this->node = $this->drupalCreateNode(['type' => 'article']);
 
-    // Hardcode that we have valid credentials.
-    $this->container
-      ->get('state')
-      ->set('akamai.valid_credentials', TRUE);
-
     $edit['basepath'] = 'http://www.example.com';
     $this->drupalPostForm('admin/config/akamai/config', $edit, t('Save configuration'));
   }

@@ -64,8 +64,10 @@ class CredentialCheck extends DiagnosticCheckBase {
       return self::SEVERITY_ERROR;
     }
 
-    // @todo Getting this globally feels gross. Is there a better way?
-    if (\Drupal::state()->get('akamai.valid_credentials') == FALSE) {
+    if (
+      ($this->config->get('storage_method') == 'key' && $this->config->get('rest_api_url') == 'https://xxxx-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx.luna.akamaiapis.net/') ||
+      ($this->config->get('storage_method') == 'file' && empty($this->config->get('edgerc_path')))
+    ) {
       $this->recommendation = $this->t("Invalid API credentials.");
       return self::SEVERITY_ERROR;
     }
