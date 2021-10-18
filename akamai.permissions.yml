@@ -1,4 +1,10 @@
 administer akamai:
-  title: 'Administer Akamai cache settings'
+  title: 'Administer Akamai'
+  description: 'Allows users to access the Akamai module configuration settings.'
+  restrict access: TRUE
+  warning: 'Only permit trusted users to configure Akamai settings.'
 purge akamai cache:
-  title: 'Use the Akamai manual cache clear form'
+  title: 'Purge Akamai cache'
+  description: 'Allows users to access Akamai manual cache clear form'
+  restrict access: TRUE
+  warning: 'Only permit trusted users to directly interact with Akamai.'
