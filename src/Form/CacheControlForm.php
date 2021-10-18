@@ -4,7 +4,6 @@ namespace Drupal\akamai\Form;
 
 use Drupal\akamai\AkamaiClientFactory;
 use Drupal\Component\Utility\Unicode;
-use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
@@ -77,16 +76,26 @@ class CacheControlForm extends FormBase {
 
     $settings_link = Url::fromRoute('akamai.settings');
     $settings_link = Link::fromTextAndUrl($settings_link->getInternalPath(), $settings_link)->toString();
-    $paths_description = $this->t(
-      'Enter one URL or CPCode per line. URL entries should be relative to the basepath
-      (e.g. node/1, content/pretty-title, sites/default/files/some/image.png).
-      Your basepath for Akamai is set as :basepath. If you would like to change
-      it, you can do so at @settings.',
-      [
-        ':basepath' => $config->get('basepath'),
-        '@settings' => $settings_link,
-      ]
-    );
+    $base_path = $config->get('basepath');
+    if (!empty($base_path)) {
+      $paths_description = $this->t(
+        'Enter one URL or CPCode per line. URL entries should either be relative
+        to the basepath (e.g. node/1, content/pretty-title,
+        sites/default/files/some/image.png), or absolute URLs matching the
+        base path :basepath. If you would like to change the configured base path,
+        you can do so at @settings.',
+        [
+          ':basepath' => $base_path,
+          '@settings' => $settings_link,
+        ]
+      );
+    }
+    else {
+      $paths_description = $this->t(
+        'There is presently no base path configured. Please set it at @settings.',
+        ['@settings' => $settings_link],
+      );
+    }
 
     $form['paths'] = [
       '#type' => 'textarea',
@@ -143,26 +152,19 @@ class CacheControlForm extends FormBase {
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
-    $objects = explode(PHP_EOL, $form_state->getValue('paths'));
+    $objects = explode(PHP_EOL, trim($form_state->getValue('paths')));
     $method = $form_state->getValue('method');
 
     if ($method == 'url') {
-      foreach ($objects as $path) {
-        // Remove any leading slashes so we can control them later.
-        if ($path[0] === '/') {
-          $path = ltrim($path, '/');
-        }
-        $path = trim($path);
-        if (UrlHelper::isExternal($path)) {
-          $full_urls[] = $path;
-        }
-        else {
-          $url = Url::fromUserInput('/' . $path);
-          if ($url->isRouted() || is_file($path)) {
-            $paths_to_clear[] = $path;
+      if (!empty($objects)) {
+        foreach ($objects as $path) {
+          // Remove any leading slashes so we can control them later.
+          if (isset($path[0]) && $path[0] === '/') {
+            $path = ltrim($path, '/');
           }
-          else {
-            $invalid_paths[] = $path;
+          $path = trim($path);
+          if (!empty($path)) {
+            $paths_to_clear[] = $path;
           }
         }
       }
@@ -170,21 +172,6 @@ class CacheControlForm extends FormBase {
     // Handle cpcodes.
     else {
       $paths_to_clear = $objects;
-    }
-
-    if (!empty($full_urls)) {
-      $form_state->setErrorByName('paths', $this->t('Please enter only relative paths, not full URLs.'));
-    }
-
-    if (!empty($invalid_paths)) {
-      $paths = implode(",", $invalid_paths);
-      $message = $this->formatPlural(
-        count($invalid_paths),
-        'The \'@paths\' path is invalid and does not exist on the site. Please provide at least one valid URL for purging.',
-        '@paths paths are invalid and do not exist on the site. Please provide valid URLs for purging.',
-        ['@paths' => $paths]
-      );
-      $form_state->setErrorByName('paths', $message);
     }
 
     if (empty($paths_to_clear)) {
@@ -198,12 +185,15 @@ class CacheControlForm extends FormBase {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $action = $form_state->getValue('action');
     $method = $form_state->getValue('method');
-    $objects = explode(PHP_EOL, $form_state->getValue('paths'));
+    $objects = explode(PHP_EOL, trim($form_state->getValue('paths')));
     $urls_to_clear = [];
 
     if ($method == 'url') {
       foreach ($objects as $path) {
-        $urls_to_clear[] = trim('/' . $path);
+        $normalized = $this->akamaiClient->normalizeUrl($path);
+        if (!empty($normalized)) {
+          $urls_to_clear[] = $normalized;
+        }
       }
     }
     else {
@@ -214,21 +204,25 @@ class CacheControlForm extends FormBase {
     $this->akamaiClient->setAction($action);
     $this->akamaiClient->setDomain($form_state->getValue('domain_override'));
 
-    if ($method == 'url') {
-      $response = $this->akamaiClient->purgeUrls($urls_to_clear);
-    }
-    // Handle cpcodes.
-    else {
-      $response = $this->akamaiClient->purgeCpCodes($urls_to_clear);
-    }
+    try {
+      if ($method == 'url') {
+        $response = $this->akamaiClient->purgeUrls($urls_to_clear);
+      }
+      // Handle cpcodes.
+      else {
+        $response = $this->akamaiClient->purgeCpCodes($urls_to_clear);
+      }
 
-    if ($response) {
+      if (!$response) {
+        throw new \Exception($this->t('There was an error clearing the cache. Check logs for further detail.')->__toString());
+      }
+
       $this->messenger->addMessage($this->t('Requested :action of the following objects: :objects',
         [':action' => $action, ':objects' => implode(', ', $urls_to_clear)])
       );
     }
-    else {
-      $this->messenger->addError($this->t('There was an error clearing the cache. Check logs for further detail.'));
+    catch (\Exception $e) {
+      $this->messenger->addError($e->getMessage());
     }
   }
 

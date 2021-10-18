@@ -56,19 +56,19 @@ class AkamaiCacheControlFormTest extends BrowserTestBase {
    * Tests manual purging via Akamai Cache Clear form.
    */
   public function testValidUrlPurging() {
-    $edit['paths'] = 'links';
+    $edit['paths'] = '   ';
     $edit['domain_override'] = 'staging';
     $edit['action'] = 'invalidate';
     $edit['method'] = 'url';
     $this->drupalPostForm('admin/config/akamai/cache-clear', $edit, t('Start Refreshing Content'));
-    $this->assertText(t('Please provide at least one valid URL for purging.'), 'Invalid URL rejected.');
+    $this->assertText(t('Paths/URLs/CPCodes field is required.'), 'Invalid URL rejected.');
 
     $edit['paths'] = 'https://www.google.com';
     $edit['domain_override'] = 'staging';
     $edit['action'] = 'invalidate';
     $edit['method'] = 'url';
     $this->drupalPostForm('admin/config/akamai/cache-clear', $edit, t('Start Refreshing Content'));
-    $this->assertText(t('Please enter only relative paths, not full URLs'), 'External URL rejected.');
+    $this->assertText(t('The URL(s) [https://www.google.com] are not configured to be work with Akamai.'), 'External URL rejected.');
   }
 
 }

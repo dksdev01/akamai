@@ -236,10 +236,15 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
    */
   public function purgeUrls(array $urls) {
     $urls = $this->normalizeUrls($urls);
+    $invalid_urls = [];
     foreach ($urls as $url) {
       if ($this->isAkamaiManagedUrl($url) === FALSE) {
-        throw new \InvalidArgumentException("The URL $url is not managed by Akamai. Try setting your Akamai base url.");
+        $invalid_urls[] = $url;
       }
+    }
+    if (!empty($invalid_urls)) {
+      $urls = implode(', ', $invalid_urls);
+      throw new \InvalidArgumentException($this->t('The URL(s) [@urls] are not configured to be work with Akamai. Please verify your Akamai base url in the module settings. If using absolute paths, ensure the hostname you are trying to invalidate is associated with the account related to the provided API credentials.', ['@urls' => $urls])->__toString());
     }
     return $this->purgeRequest($urls);
   }
@@ -327,6 +332,8 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
    *   A fully qualified URL.
    */
   public function normalizeUrl($url) {
+    // Strip any whitespace and strip any HTML.
+    $url = trim(strip_tags($url));
     if (UrlHelper::isExternal($url)) {
       return $url;
     }
