@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\akamai\Tests;
+namespace Drupal\Tests\akamai\Functional;
 
 use Drupal\Tests\BrowserTestBase;
 
@@ -28,16 +28,23 @@ class AkamaiCacheControlFormTest extends BrowserTestBase {
   protected $privilegedUser;
 
   /**
+   * Default theme.
+   *
+   * @var string
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Modules to enable.
    *
    * @var array
    */
-  public static $modules = ['system_test', 'node', 'user', 'akamai'];
+  protected static $modules = ['system_test', 'node', 'user', 'akamai'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp() : void {
     parent::setUp();
     // Create and log in our privileged user.
     $this->privilegedUser = $this->drupalCreateUser([
@@ -49,7 +56,8 @@ class AkamaiCacheControlFormTest extends BrowserTestBase {
     $this->node = $this->drupalCreateNode(['type' => 'article']);
 
     $edit['basepath'] = 'http://www.example.com';
-    $this->drupalPostForm('admin/config/akamai/config', $edit, t('Save configuration'));
+    $this->drupalGet('admin/config/akamai/config');
+    $this->submitForm($edit, t('Save configuration'));
   }
 
   /**
@@ -60,15 +68,19 @@ class AkamaiCacheControlFormTest extends BrowserTestBase {
     $edit['domain_override'] = 'staging';
     $edit['action'] = 'invalidate';
     $edit['method'] = 'url';
-    $this->drupalPostForm('admin/config/akamai/cache-clear', $edit, t('Start Refreshing Content'));
-    $this->assertText(t('Paths/URLs/CPCodes field is required.'), 'Invalid URL rejected.');
+    $this->drupalGet('admin/config/akamai/cache-clear');
+    $this->submitForm($edit, t('Start Refreshing Content'));
+    $this->assertSession()
+      ->responseContains(t('Paths/URLs/CPCodes field is required.'));
 
     $edit['paths'] = 'https://www.google.com';
     $edit['domain_override'] = 'staging';
     $edit['action'] = 'invalidate';
     $edit['method'] = 'url';
-    $this->drupalPostForm('admin/config/akamai/cache-clear', $edit, t('Start Refreshing Content'));
-    $this->assertText(t('The URL(s) [https://www.google.com] are not configured to be work with Akamai.'), 'External URL rejected.');
+    $this->drupalGet('admin/config/akamai/cache-clear');
+    $this->submitForm($edit, t('Start Refreshing Content'));
+    $this->assertSession()
+      ->responseContains(t('The URL(s) [https://www.google.com] are not configured to be work with Akamai.'));
   }
 
 }

@@ -25,7 +25,7 @@ class EdgescapeTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['akamai', 'token', 'block', 'block_content'];
+  protected static $modules = ['akamai', 'token', 'block', 'block_content'];
 
   /**
    * Test the header value.
@@ -41,7 +41,8 @@ class EdgescapeTest extends BrowserTestBase {
     // Enable Edgescape support.
     $akamai_config_path = Url::fromRoute('akamai.settings')->getInternalPath();
     $edit[Edgescape::EDGESCAPE_SUPPORT] = TRUE;
-    $this->drupalPostForm($akamai_config_path, $edit, t('Save configuration'));
+    $this->drupalGet($akamai_config_path);
+    $this->submitForm($edit, t('Save configuration'));
 
     // Create block, block content, and place.
     $label = 'tokenblock';

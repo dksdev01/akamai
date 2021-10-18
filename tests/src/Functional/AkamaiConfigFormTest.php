@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\akamai\Tests;
+namespace Drupal\Tests\akamai\Functional;
 
 use Drupal\Tests\BrowserTestBase;
 use Drupal\Core\Url;
@@ -20,16 +20,23 @@ class AkamaiConfigFormTest extends BrowserTestBase {
   protected $privilegedUser;
 
   /**
+   * Default theme.
+   *
+   * @var string
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Modules to enable.
    *
    * @var array
    */
-  public static $modules = ['system_test', 'node', 'user', 'akamai'];
+  protected static $modules = ['system_test', 'node', 'user', 'akamai'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp() : void {
     parent::setUp();
     // Create and log in our privileged user.
     $this->privilegedUser = $this->drupalCreateUser([
@@ -50,12 +57,15 @@ class AkamaiConfigFormTest extends BrowserTestBase {
     $edit['ccu_version'] = 'v3';
     $edit['v3[action]'] = 'invalidate';
 
-    $this->drupalPostForm('admin/config/akamai/config', $edit, t('Save configuration'));
+    $this->drupalGet('admin/config/akamai/config');
+    $this->submitForm($edit, t('Save configuration'));
 
     // Tests that we can't save non-integer timeouts.
     $edit['timeout'] = 'lol';
-    $this->drupalPostForm(Url::fromRoute('akamai.settings')->getInternalPath(), $edit, t('Save configuration'));
-    $this->assertText(t('Please enter only integer values in this field.'), 'Allowed only integer timeout values');
+    $this->drupalGet(Url::fromRoute('akamai.settings')->getInternalPath());
+    $this->submitForm($edit, t('Save configuration'));
+    $this->assertSession()
+      ->responseContains(t('Please enter only integer values in this field.'));
   }
 
 }

@@ -16,12 +16,12 @@ class KeyRepositoryUnavailableTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['akamai'];
+  protected static $modules = ['akamai'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp() : void {
     parent::setUp();
     $this->installConfig(['akamai']);
   }

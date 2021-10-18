@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\akamai\Tests;
+namespace Drupal\Tests\akamai\Functional;
 
 use Drupal\Tests\BrowserTestBase;
 
@@ -28,6 +28,13 @@ class AkamaiHomepageTest extends BrowserTestBase {
   protected $homepage;
 
   /**
+   * Default theme.
+   *
+   * @var string
+   */
+  protected $defaultTheme = 'bartik';
+
+  /**
    * User with admin rights.
    *
    * @var \Drupal\user\UserInterface
@@ -39,12 +46,12 @@ class AkamaiHomepageTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['system_test', 'block', 'node', 'akamai'];
+  protected static $modules = ['system_test', 'block', 'node', 'akamai'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp() : void {
     parent::setUp();
     // Create and log in our privileged user.
     $this->privilegedUser = $this->drupalCreateUser([
@@ -65,7 +72,6 @@ class AkamaiHomepageTest extends BrowserTestBase {
    */
   public function testHomepageClear() {
     // Set up theme.
-    \Drupal::service('theme_handler')->install(['bartik']);
     $theme_settings = $this->config('system.theme');
     foreach (['bartik'] as $theme) {
       // Configure and save the block.
@@ -78,7 +84,8 @@ class AkamaiHomepageTest extends BrowserTestBase {
       // The cache clearing block should pick up the current URL as the clearing
       // target.
       $this->drupalGet($this->homepage);
-      $this->assertText($this->homepage, 'The Akamai path field is set correctly');
+      $this->assertSession()
+        ->responseContains($this->homepage);
     }
   }
 

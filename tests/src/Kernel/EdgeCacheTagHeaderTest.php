@@ -18,12 +18,12 @@ class EdgeCacheTagHeaderTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['system', 'akamai'];
+  protected static $modules = ['system', 'akamai'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp() : void {
     parent::setUp();
     $this->installConfig(['akamai']);
   }
@@ -41,22 +41,22 @@ class EdgeCacheTagHeaderTest extends KernelTestBase {
     $response = $kernel->handle($request);
 
     // Verify header is not available by default.
-    $this->assertEqual(200, $response->getStatusCode());
-    $this->assertEqual($response->headers->has('Edge-Cache-Tag'), FALSE);
+    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertEquals($response->headers->has('Edge-Cache-Tag'), FALSE);
 
     // Verify header is available when enabled.
     $config->set('edge_cache_tag_header', TRUE)->save();
     $response = $kernel->handle($request);
-    $this->assertEqual(200, $response->getStatusCode());
-    $this->assertEqual($response->headers->has('Edge-Cache-Tag'), TRUE);
-    $this->assertEqual($response->headers->get('Edge-Cache-Tag'), 'config_user.role.anonymous,http_response,rendered');
+    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertEquals($response->headers->has('Edge-Cache-Tag'), TRUE);
+    $this->assertEquals($response->headers->get('Edge-Cache-Tag'), 'config_user.role.anonymous,http_response,rendered');
 
     // Verify tag blacklisting.
     $config->set('edge_cache_tag_header_blacklist', ['config:'])->save();
     $response = $kernel->handle($request);
-    $this->assertEqual(200, $response->getStatusCode());
-    $this->assertEqual($response->headers->has('Edge-Cache-Tag'), TRUE);
-    $this->assertEqual($response->headers->get('Edge-Cache-Tag'), 'http_response,rendered');
+    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertEquals($response->headers->has('Edge-Cache-Tag'), TRUE);
+    $this->assertEquals($response->headers->get('Edge-Cache-Tag'), 'http_response,rendered');
 
     // Setup the mock event subscriber.
     $subscriber = new MockHeaderSubscriber();
@@ -64,9 +64,9 @@ class EdgeCacheTagHeaderTest extends KernelTestBase {
     $event_dispatcher->addListener(AkamaiHeaderEvents::HEADER_CREATION, [$subscriber, 'onHeaderCreation']);
 
     $response = $kernel->handle($request);
-    $this->assertEqual(200, $response->getStatusCode());
-    $this->assertEqual($response->headers->has('Edge-Cache-Tag'), TRUE);
-    $this->assertEqual($response->headers->get('Edge-Cache-Tag'), 'http_response,rendered,helloworld');
+    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertEquals($response->headers->has('Edge-Cache-Tag'), TRUE);
+    $this->assertEquals($response->headers->get('Edge-Cache-Tag'), 'http_response,rendered,helloworld');
   }
 
 }
