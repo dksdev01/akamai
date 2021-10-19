@@ -1,12 +1,8 @@
 # Akamai
 
-[![Build
-Status](https://travis-ci.org/d8-contrib-modules/akamai.svg?branch=8.x-3.x)](https://travis-ci.org/d8-contrib-modules/akamai)
-[![Scrutinizer Code
-Quality](https://scrutinizer-ci.com/g/d8-contrib-modules/akamai/badges/quality-score.png?b=8.x-3.x)](https://scrutinizer-ci.com/g/d8-contrib-modules/akamai/?bra
-nch=8.x-3.x)
+https://www.drupal.org/project/akamai
 
-This module provides a Drupal 8 service to interact with the [Akamai Content
+This module provides a Drupal service to interact with the [Akamai Content
 Control Utility](https://developer.akamai.com/api/purge/ccu/overview.html).
 
 While the service can be used by developers in isolation, most users should
@@ -17,9 +13,9 @@ It incorporates the
 [AkamaiOPEN-edgegrid-php](https://github.com/akamai-open/AkamaiOPEN-edgegrid-php)
 library.
 
-Development is presently based on Github at
-https://github.com/d8-contrib-modules/akamai, with all changes synced to
-Drupal.org. This may change in the future.
+## Latest Documentation
+
+Please visit the [Drupal docs for Akamai](https://www.drupal.org/docs/contributed-modules/akamai).
 
 ## Installation and configuration
 
