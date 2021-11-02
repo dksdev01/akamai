@@ -7,8 +7,7 @@
   "license": "GPL-2.0+",
   "minimum-stability": "dev",
   "require": {
-    "akamai-open/edgegrid-auth": "~1.0.1",
-    "akamai-open/edgegrid-client": "~1.0.0",
+    "patriziotomato/edgegrid-client": "1.2.1",
     "drupal/core": "~8.5 || ^9"
   },
   "require-dev": {
