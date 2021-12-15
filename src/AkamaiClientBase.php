@@ -218,8 +218,8 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
    * @param string $url
    *   A URL to clear.
    *
-   * @return \GuzzleHttp\Psr7\Response
-   *   Response to purge request.
+   * @return \GuzzleHttp\Psr7\Response|bool
+   *   Response to purge request, or FALSE on failure.
    */
   public function purgeUrl($url) {
     return $this->purgeUrls([$url]);
@@ -231,8 +231,8 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
    * @param array $urls
    *   List of URLs to purge.
    *
-   * @return \GuzzleHttp\Psr7\Response
-   *   Response to purge request.
+   * @return \GuzzleHttp\Psr7\Response|bool
+   *   Response to purge request, or FALSE on failure.
    */
   public function purgeUrls(array $urls) {
     $urls = $this->normalizeUrls($urls);
