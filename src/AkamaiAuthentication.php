@@ -42,7 +42,8 @@ class AkamaiAuthentication extends Authentication {
         $auth = static::createFromEdgeRcFile($section, $path);
       }
       catch (ConfigException $e) {
-        $messenger->addWarning($e->getMessage());
+        // Avoid visible error since its OK for these to be missing in lower environments.
+        watchdog_exception('akamai', $e);
       }
     }
     elseif ($storage_method == 'key' && $key_provider->hasKeyRepository()) {
