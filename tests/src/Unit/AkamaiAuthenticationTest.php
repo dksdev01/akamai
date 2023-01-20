@@ -33,7 +33,7 @@ class AkamaiAuthenticationTest extends UnitTestCase {
       'access_token' => 'edgerc-test-access-token',
     ];
     $this->assertEquals($expected, $auth->getAuth());
-    $this->assertEquals(get_class($auth), 'Drupal\akamai\AkamaiAuthentication');
+    $this->assertEquals(AkamaiAuthentication::class, get_class($auth));
   }
 
   /**

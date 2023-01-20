@@ -59,17 +59,17 @@ class KeyRepositoryAvailableTest extends KernelTestBase {
    */
   public function testKeyProviderCanGetKeys() {
     $keys = $this->container->get('akamai.key_provider')->getKeys();
-    $this->assertEquals($keys['my_key']->label(), 'My Key');
-    $this->assertEquals($keys['my_key']->getKeyValue(), 'Super secret value');
-    $this->assertEquals($keys['second_key']->label(), 'Second Key');
-    $this->assertEquals($keys['second_key']->getKeyValue(), 'Yet another key');
+    $this->assertEquals('My Key', $keys['my_key']->label());
+    $this->assertEquals('Super secret value', $keys['my_key']->getKeyValue());
+    $this->assertEquals('Second Key', $keys['second_key']->label());
+    $this->assertEquals('Yet another key', $keys['second_key']->getKeyValue());
   }
 
   /**
    * Tests that KeyProvider::getKey() retrieves specific key.
    */
   public function testCanGetSpecificKey() {
-    $this->assertEquals($this->container->get('akamai.key_provider')->getKey('second_key'), 'Yet another key');
+    $this->assertEquals('Yet another key', $this->container->get('akamai.key_provider')->getKey('second_key'));
   }
 
   /**

@@ -48,15 +48,15 @@ class CacheableResponseSubscriberTest extends KernelTestBase {
     $config->set('edge_cache_tag_header', TRUE)->save();
     $response = $kernel->handle($request);
     $this->assertEquals(200, $response->getStatusCode());
-    $this->assertEquals($response->headers->has('Edge-Cache-Tag'), TRUE);
-    $this->assertEquals($response->headers->get('Edge-Cache-Tag'), 'config_user.role.anonymous,http_response,rendered');
+    $this->assertTrue($response->headers->has('Edge-Cache-Tag'));
+    $this->assertEquals('rendered,http_response,config_user.role.anonymous', $response->headers->get('Edge-Cache-Tag'));
 
     // Verify tag blacklisting.
     $config->set('edge_cache_tag_header_blacklist', ['config:'])->save();
     $response = $kernel->handle($request);
     $this->assertEquals(200, $response->getStatusCode());
-    $this->assertEquals($response->headers->has('Edge-Cache-Tag'), TRUE);
-    $this->assertEquals($response->headers->get('Edge-Cache-Tag'), 'http_response,rendered');
+    $this->assertTrue($response->headers->has('Edge-Cache-Tag'));
+    $this->assertEquals('rendered,http_response', $response->headers->get('Edge-Cache-Tag'));
 
     // Setup the mock event subscriber.
     $subscriber = new MockSubscriber();
@@ -65,8 +65,8 @@ class CacheableResponseSubscriberTest extends KernelTestBase {
 
     $response = $kernel->handle($request);
     $this->assertEquals(200, $response->getStatusCode());
-    $this->assertEquals($response->headers->has('Edge-Cache-Tag'), TRUE);
-    $this->assertEquals($response->headers->get('Edge-Cache-Tag'), 'http_response,rendered,on_header_creation');
+    $this->assertTrue($response->headers->has('Edge-Cache-Tag'));
+    $this->assertEquals('rendered,http_response,on_header_creation', $response->headers->get('Edge-Cache-Tag'));
   }
 
 }
