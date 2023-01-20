@@ -101,12 +101,12 @@ class AkamaiTagPurger extends PurgerBase {
     $timeout = (float) $this->akamaiClientConfig->get('timeout');
     // The max value for getTimeHint is 10.00.
     if ($timeout > 10) {
-      return 10;
+      return 10.0;
     }
     elseif ($timeout > 0) {
       return $timeout;
     }
-    return 0;
+    return 0.0;
   }
 
   /**
