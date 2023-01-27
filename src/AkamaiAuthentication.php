@@ -6,6 +6,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Akamai\Open\EdgeGrid\Authentication;
 use Akamai\Open\EdgeGrid\Authentication\Exception\ConfigException;
+use Psr\Log\LoggerInterface;
 
 /**
  * Connects to the Akamai EdgeGrid.
@@ -22,7 +23,7 @@ class AkamaiAuthentication extends Authentication {
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config
    *   A config factory, for getting client authentication details.
-   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   * @param \Psr\Log\LoggerInterface $logger
    *   A messenger service.
    * @param \Drupal\akamai\KeyProviderInterface $key_provider
    *   A akamai.key_provider service.
@@ -30,7 +31,7 @@ class AkamaiAuthentication extends Authentication {
    * @return \Drupal\akamai\AkamaiAuthentication
    *   An authentication object.
    */
-  public static function create(ConfigFactoryInterface $config, MessengerInterface $messenger, KeyProviderInterface $key_provider) {
+  public static function create(ConfigFactoryInterface $config, LoggerInterface $logger, KeyProviderInterface $key_provider) {
     // Following the pattern in the superclass.
     $auth = new static();
     $config = $config->get('akamai.settings');
@@ -54,7 +55,7 @@ class AkamaiAuthentication extends Authentication {
         $key_values[$key] = $key_provider->getKey($config->get($key));
 
         if (!isset($key_values[$key])) {
-          $messenger->addWarning(t('Missing @key.', ['@key' => $key]));
+          $logger->debug('Missing @key.', ['@key' => $key]);
           $missing_values = TRUE;
         }
       }

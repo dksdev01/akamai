@@ -128,7 +128,7 @@ abstract class AkamaiClientBase extends PluginBase implements AkamaiClientInterf
       ->setLogRequests($this->configFactory->get('akamai.settings')->get('log_requests'));
 
     // Create an authentication object so we can sign requests.
-    $auth = AkamaiAuthentication::create($config_factory, $messenger, $key_provider);
+    $auth = AkamaiAuthentication::create($config_factory, $logger, $key_provider);
 
     $this->akamaiClientConfig = $this->createClientConfig($auth);
 

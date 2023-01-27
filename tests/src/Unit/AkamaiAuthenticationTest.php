@@ -4,8 +4,8 @@ namespace Drupal\Tests\akamai\Unit;
 
 use Drupal\akamai\AkamaiAuthentication;
 use Drupal\akamai\KeyProviderInterface;
-use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Tests\UnitTestCase;
+use Psr\Log\LoggerInterface;
 
 /**
  * @coversDefaultClass \Drupal\akamai\AkamaiAuthentication
@@ -24,7 +24,7 @@ class AkamaiAuthenticationTest extends UnitTestCase {
     $config = $this->getEdgeRcConfig();
     $auth = AkamaiAuthentication::create(
       $this->getConfigFactoryStub(['akamai.settings' => $config]),
-      $this->prophesize(MessengerInterface::class)->reveal(),
+      $this->prophesize(LoggerInterface::class)->reveal(),
       $this->prophesize(KeyProviderInterface::class)->reveal()
     );
     $expected = [
