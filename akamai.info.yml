@@ -1,7 +1,7 @@
 name: Akamai
 type: module
 description: 'Cache Control integration with Akamai CDN. Akamai is a registered trademark of Akamai Technologies, Inc.'
-core_version_requirement: ^8.8 || ^9
+core_version_requirement: ^8.8 || ^9 || ^10
 package: Other
 configure: akamai.settings
 recommends:

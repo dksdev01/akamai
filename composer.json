@@ -8,7 +8,7 @@
   "minimum-stability": "dev",
   "require": {
     "patriziotomato/edgegrid-client": "1.2.1",
-    "drupal/core": "~8.5 || ^9"
+    "drupal/core": "~8.5 || ^9 || 10"
   },
   "require-dev": {
     "drupal/key": "~1.8",
