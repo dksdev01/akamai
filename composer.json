@@ -1,5 +1,5 @@
 {
-  "name": "drupal/akamai",
+  "name": "dksdev01/akamai",
   "type": "drupal-module",
   "description": "Cache Control integration with Akamai CDN. Akamai is a registered trademark of Akamai Technologies, Inc.",
   "keywords": ["Drupal", "Akamai", "CDN", "Purge"],
