@@ -7,13 +7,8 @@
   "license": "GPL-2.0+",
   "minimum-stability": "dev",
   "require": {
-    "patriziotomato/edgegrid-client": "1.2.1",
-    "drupal/core": "~8.5 || ^9 || ^10"
-  },
-  "require-dev": {
-    "drupal/key": "~1.8",
-    "drupal/purge": "~3.2",
-    "drupal/token": "~1.6"
+    "drupal/core": "~8.5 || ^9 || ^10",
+    "akamai-open/edgegrid-client": "dev-master"
   },
   "extra": {
     "drush": {
