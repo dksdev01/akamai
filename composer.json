@@ -8,7 +8,7 @@
   "minimum-stability": "dev",
   "require": {
     "drupal/core": "~8.5 || ^9 || ^10",
-    "akamai-open/edgegrid-client": "dev-master"
+    "dksdev01/edgegrid-client": "dev-master"
   },
   "extra": {
     "drush": {
