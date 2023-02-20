@@ -68,7 +68,7 @@ class CacheableResponseSubscriber implements EventSubscriberInterface {
    *   The event to process.
    */
   public function onRespond(ResponseEvent $event) {
-    if (!$event->isMasterRequest()) {
+    if (!$event->isMainRequest()) {
       return;
     }
 
@@ -92,7 +92,7 @@ class CacheableResponseSubscriber implements EventSubscriberInterface {
 
       // Instantiate our event.
       $event = new AkamaiHeaderEvents($tags);
-      $this->eventDispatcher->dispatch(AkamaiHeaderEvents::HEADER_CREATION, $event);
+      $this->eventDispatcher->dispatch($event, AkamaiHeaderEvents::HEADER_CREATION);
       $tags = $event->data;
       foreach ($tags as &$tag) {
         $tag = $this->tagFormatter->format($tag);

@@ -133,7 +133,7 @@ class AkamaiTagPurger extends PurgerBase {
 
     // Instantiate event and alter tags with subscribers.
     $event = new AkamaiPurgeEvents($tags_to_clear);
-    $this->eventDispatcher->dispatch(AkamaiPurgeEvents::PURGE_CREATION, $event);
+    $this->eventDispatcher->dispatch($event, AkamaiPurgeEvents::PURGE_CREATION);
     $tags_to_clear = $event->data;
 
     // Purge tags.

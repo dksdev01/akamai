@@ -129,7 +129,7 @@ class AkamaiPurger extends PurgerBase {
 
     // Instantiate event and alter tags with subscribers.
     $event = new AkamaiPurgeEvents($urls_to_clear);
-    $this->eventDispatcher->dispatch(AkamaiPurgeEvents::PURGE_CREATION, $event);
+    $this->eventDispatcher->dispatch($event, AkamaiPurgeEvents::PURGE_CREATION);
     $urls_to_clear = $event->data;
 
     // Purge all URLs in a single request. Akamai accepts up to 50 (?)

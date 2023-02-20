@@ -2,7 +2,7 @@
 
 namespace Drupal\akamai\Event;
 
-use Symfony\Component\EventDispatcher\Event;
+use Symfony\Contracts\EventDispatcher\Event;
 
 /**
  * Event that is fired when Akamai header is formed.
